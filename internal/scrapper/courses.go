@@ -9,7 +9,12 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-func FetchCourses(client *http.Client, baseURL string) {
+type Course struct {
+	Name string
+	URL string
+}
+
+func FetchCourses(client *http.Client, baseURL string) []Course {
 	resp, err := client.Get(baseURL + "/my/")
 	if err != nil {
 		log.Fatal(err)
@@ -21,9 +26,15 @@ func FetchCourses(client *http.Client, baseURL string) {
 		log.Fatal(err)
 	}
 
+	var courses []Course
+	
 	doc.Find("a[href*='course/view.php']").Each(func (i int, s *goquery.Selection) {
-		title := strings.TrimSpace(s.Text())
-		link, _ := s.Attr("href")
-		fmt.Printf("Course: %s\nLink: %s\n", title, link)
+		name := strings.TrimSpace(s.Text())
+		link, exists := s.Attr("href")
+		if exists && name != "" {
+			courses = append(courses, Course{Name: name, URL: link})
+			fmt.Printf("Course: %s\nLink: %s\n", name, link)
+		}
 	})
+	return courses
 }

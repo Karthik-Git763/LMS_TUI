@@ -39,5 +39,26 @@ func main() {
 		log.Fatal("Login Failed")
 	}
 	fmt.Println("Login Successful")
-	scrapper.FetchCourses(client, baseURL)
+	
+	courses := scrapper.FetchCourses(client, baseURL)
+	
+	for _, course := range courses {
+		fmt.Println("\n Course: ", course.Name)
+		
+		attendanceURL, err := scrapper.FindAttendanceURL(client, course.URL)
+	 	if err != nil {
+			fmt.Println("No attendance module")
+			continue
+		}
+		
+		attendanceRecords, err := scrapper.ScrapeAttendance(client, attendanceURL)
+		if err != nil {
+			fmt.Println("Error fetching attendance")
+			continue
+		}
+	
+		attended, total := scrapper.CalculateAttendancePercentage(attendanceRecords)
+		percent := float64(attended) / float64(total) * 100
+		fmt.Printf("Attendance: %d / %d = (%.2f%%)\n", attended, total, percent)
+	}
 }
