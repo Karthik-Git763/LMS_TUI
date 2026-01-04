@@ -68,15 +68,12 @@ func main() {
 			fmt.Println("Error fetching assignments")
 			continue
 		}
-		for i := range assignments {
-			scrapper.AssignementDetailsStatusAndDueDate(client, &assignments[i])
-			fmt.Println("Assignment Details: ", assignments[i].Title)
-			fmt.Println("Course: ", assignments[i].CourseName)
-			fmt.Println("Status: ", assignments[i].Status)
-			fmt.Println("Open Date: ", assignments[i].OpenDate)
-			fmt.Println("Due Date: ", assignments[i].DueDate)
-			fmt.Println("Grade: ", assignments[i].Grade)
-			fmt.Println()
+		scrapper.PrintAssignmentDetails(client, assignments)
+		vpls, err := scrapper.FindVPLInCourse(client, course)
+		if err != nil {
+			fmt.Println("Error fetching VPLs")
+			continue
 		}
+		scrapper.PrintVPLDetails(client, vpls)
 	}
 }

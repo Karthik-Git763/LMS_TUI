@@ -45,7 +45,7 @@ func FindAttendanceURL(client *http.Client, courseURL string) (string, error) {
 				u.RawQuery = q.Encode()
 				
 				attendanceURL = u.String()
-				fmt.Println("Attendance URL found:", attendanceURL)
+				// fmt.Println("Attendance URL found:", attendanceURL)
 				return false
 			}
 		}

@@ -1,7 +1,7 @@
 package scrapper
 
 import (
-	"fmt"
+	// "fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -33,7 +33,7 @@ func FetchCourses(client *http.Client, baseURL string) []Course {
 		link, exists := s.Attr("href")
 		if exists && name != "" {
 			courses = append(courses, Course{Name: name, URL: link})
-			fmt.Printf("Course: %s\nLink: %s\n", name, link)
+			// fmt.Printf("Course: %s\nLink: %s\n", name, link)
 		}
 	})
 	return courses
