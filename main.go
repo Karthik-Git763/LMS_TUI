@@ -7,7 +7,9 @@ import (
 
 	"lms/internal/auth"
 	"lms/internal/scrapper"
+	"lms/internal/tui"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/joho/godotenv"
 )
 
@@ -75,5 +77,10 @@ func main() {
 			continue
 		}
 		scrapper.PrintVPLDetails(client, vpls)
+	}
+	
+	p := tea.NewProgram(tui.InitialModel(courses))
+	if err := p.Start(); err != nil {
+		panic(err)
 	}
 }
