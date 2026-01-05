@@ -198,12 +198,15 @@ func (m Model) AttendanceDetailsView() string {
 	
 	attended, total := scrapper.CalculateAttendancePercentage(records)
 	percent := float64(attended) / float64(total) * 100
-	
+	warning := ""
+	if percent < 80 {
+		warning = "Warning: Low attendance!"
+	}
 	for _, record := range records {
 		s += fmt.Sprintf("%s | %s | %s \n", record.Date, record.Session, record.Status)
 	}
 	
-	s += fmt.Sprintf("Overall: %d/%d (%.2f%%)\n\n", attended, total, percent)
+	s += fmt.Sprintf("Overall: %d/%d (%.2f%%)\n%s\n", attended, total, percent, warning)
 	m.selectedURL = m.selectedCourse.AttendanceURL
 	s += fmt.Sprintf("\nq to back • Ctrl+c to exit • o open in browser • %s\n", m.selectedURL)
 	return s
