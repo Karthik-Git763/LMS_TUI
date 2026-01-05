@@ -1,7 +1,6 @@
 package scrapper
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -91,16 +90,3 @@ func VPLDetailsStatusAndDueDate(client *http.Client, v *VPL) error {
     return nil
 }
 
-func PrintVPLDetails(client *http.Client, vpls []VPL) {
-	for i := range vpls {
-		if err := VPLDetailsStatusAndDueDate(client, &vpls[i]); err != nil {
-			fmt.Println("Error fetching VPL details:", err)
-			continue
-		}
-		fmt.Println("VPL Details: ", vpls[i].Title)
-		fmt.Println("Course: ", vpls[i].CourseName)
-		fmt.Println("Open Date: ", vpls[i].OpenDate)
-		fmt.Println("Due Date: ", vpls[i].DueDate)
-		fmt.Println()
-	}
-}

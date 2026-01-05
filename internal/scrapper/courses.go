@@ -10,8 +10,9 @@ import (
 )
 
 type Course struct {
-	Name string
-	URL string
+	Name 			string
+	URL 			string
+	AttendanceURL 	string
 }
 
 func FetchCourses(client *http.Client, baseURL string) []Course {

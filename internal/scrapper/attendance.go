@@ -79,8 +79,8 @@ func ScrapeAttendance(client *http.Client, attendanceURL string) ([]AttendanceRe
 		
 		record := AttendanceRecord {
 			Session: strings.TrimSpace(cols.Eq(0).Text()),
-			Date:  strings.TrimSpace(cols.Eq(1).Text()),
-			Status:    strings.TrimSpace(cols.Eq(2).Text()),
+			Date: strings.TrimSpace(cols.Eq(1).Text()),
+			Status: strings.TrimSpace(cols.Eq(2).Text()),
 		}
 		attendanceRecords = append(attendanceRecords, record)
 	})

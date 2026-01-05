@@ -23,63 +23,70 @@ func main() {
 
 	username := os.Getenv("YOUR_USERNAME")
 	password := os.Getenv("YOUR_PASSWORD")
-	
+
 	client := auth.CreateClient()
-	
+
 	token, err := auth.FetchToken(client, baseURL)
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	err = auth.Login(client, baseURL, username, password, token)
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	ok := auth.CheckLogin(client, baseURL)
 	if !ok {
 		log.Fatal("Login Failed")
 	}
-	fmt.Println("Login Successful")
-	
+	// fmt.Println("Login Successful")
+
 	courses := scrapper.FetchCourses(client, baseURL)
-	
-	for _, course := range courses {
-		fmt.Println("\n Course: ", course.Name)
-		
+
+	attendanceByCourse := make(map[string][]scrapper.AttendanceRecord)
+	assignmentByCourse := make(map[string][]scrapper.Assignment)
+	vplByCourse := make(map[string][]scrapper.VPL)
+
+	for i, course := range courses {
+		// fmt.Println("\n Course: ", course.Name)
+
 		attendanceURL, err := scrapper.FindAttendanceURL(client, course.URL)
-	 	if err != nil {
-			fmt.Println("No attendance module")
+		if err != nil {
+			// fmt.Println("No attendance module")
 			continue
 		}
+		courses[i].AttendanceURL = attendanceURL
 		
 		attendanceRecords, err := scrapper.ScrapeAttendance(client, attendanceURL)
 		if err != nil {
-			fmt.Println("Error fetching attendance")
+			// fmt.Println("Error fetching attendance")
 			continue
 		}
-	
-		attended, total := scrapper.CalculateAttendancePercentage(attendanceRecords)
-		percent := float64(attended) / float64(total) * 100
-		fmt.Printf("Attendance: %d / %d = (%.2f%%)\n", attended, total, percent)
-	}
-	
-	for _, course := range courses {
+		attendanceByCourse[course.Name] = attendanceRecords
+
+		
 		assignments, err := scrapper.FindAssignmentsInCourse(client, course)
 		if err != nil {
 			fmt.Println("Error fetching assignments")
 			continue
 		}
-		scrapper.PrintAssignmentDetails(client, assignments)
+		for i := range assignments {
+			scrapper.AssignementDetailsStatusAndDueDate(client, &assignments[i])
+		}
+		assignmentByCourse[course.Name] = assignments
 		vpls, err := scrapper.FindVPLInCourse(client, course)
 		if err != nil {
 			fmt.Println("Error fetching VPLs")
 			continue
 		}
-		scrapper.PrintVPLDetails(client, vpls)
+		for i := range vpls {
+			scrapper.VPLDetailsStatusAndDueDate(client, &vpls[i])
+		}
+		vplByCourse[course.Name] = vpls
 	}
-	
-	p := tea.NewProgram(tui.InitialModel(courses))
+
+	p := tea.NewProgram(tui.InitialModel(courses, attendanceByCourse, assignmentByCourse, vplByCourse), tea.WithAltScreen())
 	if err := p.Start(); err != nil {
 		panic(err)
 	}

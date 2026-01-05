@@ -3,7 +3,6 @@ package scrapper
 import (
 	"net/http"
 	"strings"
-	"fmt"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -88,17 +87,4 @@ func AssignementDetailsStatusAndDueDate(client *http.Client, a *Assignment) erro
 		ParseLabelValues(label, value, a)
 	})
 	return nil
-}
-
-func PrintAssignmentDetails(client *http.Client, assignments []Assignment) {
-	for i := range assignments {
-		AssignementDetailsStatusAndDueDate(client, &assignments[i])
-		fmt.Println("Assignment Details: ", assignments[i].Title)
-		fmt.Println("Course: ", assignments[i].CourseName)
-		fmt.Println("Status: ", assignments[i].Status)
-		fmt.Println("Open Date: ", assignments[i].OpenDate)
-		fmt.Println("Due Date: ", assignments[i].DueDate)
-		fmt.Println("Grade: ", assignments[i].Grade)
-		fmt.Println()
-	}
 }
