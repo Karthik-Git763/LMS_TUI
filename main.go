@@ -44,7 +44,7 @@ func main() {
 
 	courses := scrapper.FetchCourses(client, baseURL)
 
-	attendanceByCourse := make(map[string][]scrapper.AttendanceRecord)
+	attendanceByCourse := make(map[string][]scrapper.Attendance)
 	assignmentByCourse := make(map[string][]scrapper.Assignment)
 	vplByCourse := make(map[string][]scrapper.VPL)
 
@@ -87,7 +87,7 @@ func main() {
 	}
 
 	p := tea.NewProgram(tui.InitialModel(courses, attendanceByCourse, assignmentByCourse, vplByCourse), tea.WithAltScreen())
-	if err := p.Start(); err != nil {
+	if _, err := p.Run(); err != nil {
 		panic(err)
 	}
 }

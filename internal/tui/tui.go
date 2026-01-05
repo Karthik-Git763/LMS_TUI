@@ -26,12 +26,12 @@ type Model struct {
 	courses 			[]scrapper.Course
 	selectedCourse 		scrapper.Course
 	assignmentsByCourse map[string][]scrapper.Assignment
-	attendanceByCourse 	map[string][]scrapper.AttendanceRecord
+	attendanceByCourse 	map[string][]scrapper.Attendance
 	vplByCourse 		map[string][]scrapper.VPL
 	selectedURL 		string
 }
 
-func InitialModel(courses []scrapper.Course, attendanceByCourse map[string][]scrapper.AttendanceRecord, assignmentsByCourse map[string][]scrapper.Assignment, vplByCourse map[string][]scrapper.VPL) Model {
+func InitialModel(courses []scrapper.Course, attendanceByCourse map[string][]scrapper.Attendance, assignmentsByCourse map[string][]scrapper.Assignment, vplByCourse map[string][]scrapper.VPL) Model {
 	return Model{
 		screen:              menuScreen,
 		courses:             courses,
@@ -86,7 +86,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case "down", "j":
 				switch m.screen {
-				case menuScreen, attendanceCourseScreen, assignmentCourseScreen, vplCourseScreen:
+				case menuScreen:
+					if m.cursor < 3 {
+						m.cursor++
+					}
+			 	case attendanceCourseScreen, assignmentCourseScreen, vplCourseScreen:
 					if m.cursor < len(m.courses)-1 {
 						m.cursor++
 					}
@@ -120,6 +124,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				case attendanceCourseScreen:
 					m.selectedCourse = m.courses[m.cursor]
+					m.selectedURL = m.selectedCourse.AttendanceURL
 					m.screen = attendanceDetailsScreen
 					m.cursor = 0
 				case assignmentCourseScreen:
@@ -168,7 +173,7 @@ func (m Model) MenuView() string {
 		}
 		s += fmt.Sprintf("%s %s\n", cursor, option)
 	}
-	s += "\n↑/↓ or j/k to move • Enter to select • q to quit\n"
+	s += "\n↑/↓ or j/k to move • Enter to select • Ctrl+c to exit\n"
 	return s
 }
 
@@ -182,7 +187,7 @@ func (m Model) AttendanceCourseView() string {
 		}
 		s += cursor + " " + course.Name + "\n" 
 	}
-	s += "\nEnter select, q to back\n"
+	s += "\n↑/↓ navigate • Enter select • q to back • Ctrl+c to exit\n"
 	return s
 }
 
@@ -199,7 +204,8 @@ func (m Model) AttendanceDetailsView() string {
 	}
 	
 	s += fmt.Sprintf("Overall: %d/%d (%.2f%%)\n\n", attended, total, percent)
-	s += "\nq back, o open in browser\n"
+	m.selectedURL = m.selectedCourse.AttendanceURL
+	s += fmt.Sprintf("\nq to back • Ctrl+c to exit • o open in browser • %s\n", m.selectedURL)
 	return s
 }
 
@@ -213,7 +219,7 @@ func (m Model) AssignmentCourseView() string {
 		}
 		s += cursor + " " + course.Name + "\n"
 	}
-	s += "↑/↓ navigate • o open • q back\n"
+	s += "↑/↓ navigate • Enter select • q to back • Ctrl+c to exit\n"
 	return s
 }
 
@@ -226,11 +232,11 @@ func (m Model) AssignmentDetailView() string {
 		cursor := ""
 		if i == m.cursor {
 			cursor = ">"
-			m.selectedURL = assignment.URL
+			// m.selectedURL = assignment.URL
 		}
 		s += cursor + " " + assignment.Title + "\nDue: " + assignment.DueDate + "\nStatus: " + assignment.Status + "\nGrade: " + assignment.Grade + "\n"
 	}
-	s += "\nq back, o open in browser\n"
+	s += "\nq to back • Ctrl+c to exit • o open in browser\n"
 	return s
 }
 
@@ -244,7 +250,7 @@ func (m Model) VPLCourseView() string {
 		}
 		s += cursor + " " + course.Name + "\n"
 	}
-	s += "↑/↓ navigate • o open • q back\n"
+	s += "↑/↓ navigate • Enter select • q to back • Ctrl+c to exit\n"
 	return s
 }
 
@@ -261,6 +267,6 @@ func (m Model) VPLDetailsView() string {
 		}
 		s += cursor + " " + vpl.Title + "\nDue: " + vpl.DueDate + "\n"
 	}
-	s += "\nq back, o open in browser\n"
+	s += "\nq to back • Ctrl+c to exit • o open in browser\n"
 	return s
 }

@@ -9,10 +9,10 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-type AttendanceRecord struct {
-	Session string
-	Status 	string
-	Date 	string
+type Attendance struct {
+	Session 	string
+	Status 		string
+	Date 		string
 }
 
 func FindAttendanceURL(client *http.Client, courseURL string) (string, error) {
@@ -57,7 +57,7 @@ func FindAttendanceURL(client *http.Client, courseURL string) (string, error) {
 	return attendanceURL, nil
 }
 
-func ScrapeAttendance(client *http.Client, attendanceURL string) ([]AttendanceRecord, error) {
+func ScrapeAttendance(client *http.Client, attendanceURL string) ([]Attendance, error) {
 	resp, err := client.Get(attendanceURL)
 	if err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func ScrapeAttendance(client *http.Client, attendanceURL string) ([]AttendanceRe
 		return nil, err
 	}
 	
-	var attendanceRecords = []AttendanceRecord{}
+	var attendanceRecords = []Attendance{}
 	
 	doc.Find("table.generaltable tbody tr").Each(func(i int, row *goquery.Selection) {
 		cols := row.Find("td")
@@ -77,7 +77,7 @@ func ScrapeAttendance(client *http.Client, attendanceURL string) ([]AttendanceRe
 			return
 		}
 		
-		record := AttendanceRecord {
+		record := Attendance {
 			Session: strings.TrimSpace(cols.Eq(0).Text()),
 			Date: strings.TrimSpace(cols.Eq(1).Text()),
 			Status: strings.TrimSpace(cols.Eq(2).Text()),
@@ -87,7 +87,7 @@ func ScrapeAttendance(client *http.Client, attendanceURL string) ([]AttendanceRe
 	return attendanceRecords, nil
 }
 
-func CalculateAttendancePercentage(records []AttendanceRecord) (attended int, total int) {
+func CalculateAttendancePercentage(records []Attendance) (attended int, total int) {
 	for _, record := range records {
 		total++
 		if record.Status == "Present" {
