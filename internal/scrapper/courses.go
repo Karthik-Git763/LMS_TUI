@@ -1,7 +1,7 @@
 package scrapper
 
 import (
-	// "fmt"
+	"fmt"
 	"lms/internal/models"
 	"log"
 	"net/http"
@@ -25,7 +25,9 @@ func FetchCourses(client *http.Client, baseURL string) []models.Course {
 	var courses []models.Course
 	
 	doc.Find("a[href*='course/view.php']").Each(func (i int, s *goquery.Selection) {
-		name := strings.TrimSpace(s.Text())
+		name, _ := s.Attr("title")
+		name = strings.TrimSpace(name)
+		fmt.Println(name)
 		link, exists := s.Attr("href")
 		if exists && name != "" {
 			courses = append(courses, models.Course{Name: name, URL: link})

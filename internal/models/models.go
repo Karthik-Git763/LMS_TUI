@@ -3,7 +3,6 @@ package models
 type Course struct {
 	Name 			string
 	URL 			string
-	AttendanceURL 	string
 }
 
 type Assignment struct {
@@ -20,6 +19,7 @@ type Attendance struct {
 	Session 	string
 	Status 		string
 	Date 		string
+	AttendanceURL 	string
 }
 
 type VPL struct {

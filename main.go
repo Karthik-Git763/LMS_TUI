@@ -62,14 +62,14 @@ func main() {
 	
 	var wg sync.WaitGroup
 
-	for i, course := range courses {
+	for _, course := range courses {
 		// fmt.Println("\n Course: ", course.Name)
 		wg.Go(func() {
 			attendanceURL, err := scrapper.FindAttendanceURL(client, course.URL)
 			if err == nil && attendanceURL != "" {
-				mu.Lock()
-				courses[i].AttendanceURL = attendanceURL
-				mu.Unlock()
+				// mu.Lock()
+				// attendanceByCourse[course.Name] = append(attendanceByCourse[course.Name], models.Attendance{AttendanceURL: attendanceURL})
+				// mu.Unlock()
 				log.Println("Attendance URL found:", attendanceURL)
 				attendanceRecords, err := scrapper.ScrapeAttendance(client, attendanceURL)
 				if err == nil {
@@ -78,6 +78,8 @@ func main() {
 					mu.Unlock()
 					log.Println("Attendance records fetched:", len(attendanceRecords))
 				}
+			} else {
+				log.Println("Attendance URL not found")
 			}
 
 			assignments, err := scrapper.FindAssignmentsInCourse(client, course)
@@ -95,7 +97,7 @@ func main() {
 				mu.Unlock()
 				log.Println("Assignments fetched:", len(assignments))
 			} else {
-				fmt.Println("Error fetching assignments")
+				log.Println("Error fetching assignments")
 			}
 
 			vpls, err := scrapper.FindVPLInCourse(client, course)
@@ -113,7 +115,7 @@ func main() {
 				mu.Unlock()
 				log.Println("VPLs fetched:", len(vpls))
 			} else {
-				fmt.Println("Error fetching VPLs")
+				log.Println("Error fetching VPLs")
 			}
 		})
 	}

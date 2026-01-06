@@ -125,7 +125,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				case attendanceCourseScreen:
 					m.selectedCourse = m.courses[m.cursor]
-					m.selectedURL = m.selectedCourse.AttendanceURL
+					records := m.attendanceByCourse[m.selectedCourse.Name]
+					if len(records) > 0 {
+						m.selectedURL = records[0].AttendanceURL
+					}
 					m.screen = attendanceDetailsScreen
 					m.cursor = 0
 				case assignmentCourseScreen:
@@ -197,6 +200,12 @@ func (m Model) AttendanceDetailsView() string {
 	
 	s := "Attendance -> " + m.selectedCourse.Name + "\n\n"
 	
+	if len(records) == 0 {
+		s += "No attendance records found for this course.\n\n"
+		s += "q to back • Ctrl+c to exit\n"
+		return s
+	}
+	
 	attended, total := scrapper.CalculateAttendancePercentage(records)
 	percent := float64(attended) / float64(total) * 100
 	warning := ""
@@ -208,8 +217,10 @@ func (m Model) AttendanceDetailsView() string {
 	}
 	
 	s += fmt.Sprintf("Overall: %d/%d (%.2f%%)\n%s\n", attended, total, percent, warning)
-	m.selectedURL = m.selectedCourse.AttendanceURL
-	s += fmt.Sprintf("\nq to back • Ctrl+c to exit • o open in browser • %s\n", m.selectedURL)
+	if len(records) > 0 {
+		m.selectedURL = records[0].AttendanceURL
+		s += fmt.Sprintf("\nq to back • Ctrl+c to exit • o open in browser • %s\n", m.selectedURL)
+	}
 	return s
 }
 
