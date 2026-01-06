@@ -81,11 +81,13 @@ func main() {
 
 			assignments, err := scrapper.FindAssignmentsInCourse(client, course)
 			if err == nil {
+				var assignWg sync.WaitGroup
 				for k := range assignments {
-					wg.Go(func() {
+					assignWg.Go(func() {
 						scrapper.AssignementDetailsStatusAndDueDate(client, &assignments[k])
 					})
 				}
+				assignWg.Wait()
 				
 				mu.Lock()
 				assignmentByCourse[course.Name] = assignments
@@ -97,11 +99,13 @@ func main() {
 
 			vpls, err := scrapper.FindVPLInCourse(client, course)
 			if err == nil {
+				var vplWg sync.WaitGroup
 				for k := range vpls {
-					wg.Go(func() {
+					vplWg.Go(func() {
 						scrapper.VPLDetailsStatusAndDueDate(client, &vpls[k])
 					})
 				}
+				vplWg.Wait()
 				
 				mu.Lock()
 				vplByCourse[course.Name] = vpls
