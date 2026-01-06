@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 
 	"lms/internal/auth"
 	"lms/internal/scrapper"
@@ -42,49 +43,76 @@ func main() {
 	}
 	// fmt.Println("Login Successful")
 
+	f, err := tea.LogToFile("./log.txt", "Log: ")
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	defer f.Close()
+	log.SetOutput(f)
+
 	courses := scrapper.FetchCourses(client, baseURL)
 
 	attendanceByCourse := make(map[string][]scrapper.Attendance)
 	assignmentByCourse := make(map[string][]scrapper.Assignment)
 	vplByCourse := make(map[string][]scrapper.VPL)
+	
+	var mu sync.Mutex
+	
+	var wg sync.WaitGroup
 
 	for i, course := range courses {
 		// fmt.Println("\n Course: ", course.Name)
+		wg.Go(func() {
+			attendanceURL, err := scrapper.FindAttendanceURL(client, course.URL)
+			if err == nil && attendanceURL != "" {
+				mu.Lock()
+				courses[i].AttendanceURL = attendanceURL
+				mu.Unlock()
+				log.Println("Attendance URL found:", attendanceURL)
+				attendanceRecords, err := scrapper.ScrapeAttendance(client, attendanceURL)
+				if err == nil {
+					mu.Lock()
+					attendanceByCourse[course.Name] = attendanceRecords
+					mu.Unlock()
+					log.Println("Attendance records fetched:", len(attendanceRecords))
+				}
+			}
 
-		attendanceURL, err := scrapper.FindAttendanceURL(client, course.URL)
-		if err != nil {
-			// fmt.Println("No attendance module")
-			continue
-		}
-		courses[i].AttendanceURL = attendanceURL
-		
-		attendanceRecords, err := scrapper.ScrapeAttendance(client, attendanceURL)
-		if err != nil {
-			// fmt.Println("Error fetching attendance")
-			continue
-		}
-		attendanceByCourse[course.Name] = attendanceRecords
+			assignments, err := scrapper.FindAssignmentsInCourse(client, course)
+			if err == nil {
+				for k := range assignments {
+					wg.Go(func() {
+						scrapper.AssignementDetailsStatusAndDueDate(client, &assignments[k])
+					})
+				}
+				
+				mu.Lock()
+				assignmentByCourse[course.Name] = assignments
+				mu.Unlock()
+				log.Println("Assignments fetched:", len(assignments))
+			} else {
+				fmt.Println("Error fetching assignments")
+			}
 
-		
-		assignments, err := scrapper.FindAssignmentsInCourse(client, course)
-		if err != nil {
-			fmt.Println("Error fetching assignments")
-			continue
-		}
-		for i := range assignments {
-			scrapper.AssignementDetailsStatusAndDueDate(client, &assignments[i])
-		}
-		assignmentByCourse[course.Name] = assignments
-		vpls, err := scrapper.FindVPLInCourse(client, course)
-		if err != nil {
-			fmt.Println("Error fetching VPLs")
-			continue
-		}
-		for i := range vpls {
-			scrapper.VPLDetailsStatusAndDueDate(client, &vpls[i])
-		}
-		vplByCourse[course.Name] = vpls
+			vpls, err := scrapper.FindVPLInCourse(client, course)
+			if err == nil {
+				for k := range vpls {
+					wg.Go(func() {
+						scrapper.VPLDetailsStatusAndDueDate(client, &vpls[k])
+					})
+				}
+				
+				mu.Lock()
+				vplByCourse[course.Name] = vpls
+				mu.Unlock()
+				log.Println("VPLs fetched:", len(vpls))
+			} else {
+				fmt.Println("Error fetching VPLs")
+			}
+		})
 	}
+	wg.Wait()
 
 	p := tea.NewProgram(tui.InitialModel(courses, attendanceByCourse, assignmentByCourse, vplByCourse), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
