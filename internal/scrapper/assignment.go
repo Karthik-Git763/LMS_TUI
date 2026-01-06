@@ -1,23 +1,14 @@
 package scrapper
 
 import (
+	"lms/internal/models"
 	"net/http"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
-type Assignment struct {
-	Title 		string
-	OpenDate	string
-	DueDate 	string
-	Status 		string
-	Grade		string
-	CourseName 	string
-	URL 		string
-}
-
-func FindAssignmentsInCourse(client *http.Client, course Course) ([]Assignment, error) {
+func FindAssignmentsInCourse(client *http.Client, course models.Course) ([]models.Assignment, error) {
 	resp, err := client.Get(course.URL)
 	if err != nil {
 		return nil, err
@@ -29,7 +20,7 @@ func FindAssignmentsInCourse(client *http.Client, course Course) ([]Assignment, 
 		return nil, err
 	}
 	
-	var assignments []Assignment
+	var assignments []models.Assignment
 	
 	doc.Find("a[href*='/mod/assign/view.php']").Each(func(i int, s *goquery.Selection) {
 		title := strings.TrimSpace(s.Text())
@@ -39,7 +30,7 @@ func FindAssignmentsInCourse(client *http.Client, course Course) ([]Assignment, 
 		}
 		// fmt.Println("Found Assignment URL", href)
 		
-		assignments = append(assignments, Assignment{
+		assignments = append(assignments, models.Assignment{
 			Title: title,
 			CourseName: course.Name,
 			URL: href,
@@ -48,7 +39,7 @@ func FindAssignmentsInCourse(client *http.Client, course Course) ([]Assignment, 
 	return assignments, nil
 }
 
-func ParseLabelValues(label, value string, a *Assignment) {
+func ParseLabelValues(label, value string, a *models.Assignment) {
 	switch {
 		case strings.Contains(label, "submission status"):
 			a.Status = value
@@ -61,7 +52,7 @@ func ParseLabelValues(label, value string, a *Assignment) {
 	}
 }
 
-func AssignementDetailsStatusAndDueDate(client *http.Client, a *Assignment) error {
+func AssignmentDetailsStatusAndDueDate(client *http.Client, a *models.Assignment) error {
 	resp, err := client.Get(a.URL)
 	if err != nil {
 		return nil

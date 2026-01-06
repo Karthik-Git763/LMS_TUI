@@ -10,6 +10,17 @@ import (
 
 type Screen int
 
+type Model struct {
+	screen 				Screen
+	cursor 				int
+	courses 			[]models.Course
+	selectedCourse 		models.Course
+	assignmentsByCourse map[string][]models.Assignment
+	attendanceByCourse 	map[string][]models.Attendance
+	vplByCourse 		map[string][]models.VPL
+	selectedURL 		string
+}
+
 const (
 	menuScreen Screen = iota
 	attendanceCourseScreen
@@ -20,18 +31,8 @@ const (
 	vplDetailsScreen
 )
 
-type Model struct {
-	screen 				Screen
-	cursor 				int
-	courses 			[]scrapper.Course
-	selectedCourse 		scrapper.Course
-	assignmentsByCourse map[string][]scrapper.Assignment
-	attendanceByCourse 	map[string][]scrapper.Attendance
-	vplByCourse 		map[string][]scrapper.VPL
-	selectedURL 		string
-}
 
-func InitialModel(courses []scrapper.Course, attendanceByCourse map[string][]scrapper.Attendance, assignmentsByCourse map[string][]scrapper.Assignment, vplByCourse map[string][]scrapper.VPL) Model {
+func InitialModel(courses []models.Course, attendanceByCourse map[string][]models.Attendance, assignmentsByCourse map[string][]models.Assignment, vplByCourse map[string][]models.VPL) Model {
 	return Model{
 		screen:              menuScreen,
 		courses:             courses,

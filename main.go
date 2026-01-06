@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"lms/internal/auth"
+	"lms/internal/models"
 	"lms/internal/scrapper"
 	"lms/internal/tui"
 
@@ -53,9 +54,9 @@ func main() {
 
 	courses := scrapper.FetchCourses(client, baseURL)
 
-	attendanceByCourse := make(map[string][]scrapper.Attendance)
-	assignmentByCourse := make(map[string][]scrapper.Assignment)
-	vplByCourse := make(map[string][]scrapper.VPL)
+	attendanceByCourse := make(map[string][]models.Attendance)
+	assignmentByCourse := make(map[string][]models.Assignment)
+	vplByCourse := make(map[string][]models.VPL)
 	
 	var mu sync.Mutex
 	
@@ -84,7 +85,7 @@ func main() {
 				var assignWg sync.WaitGroup
 				for k := range assignments {
 					assignWg.Go(func() {
-						scrapper.AssignementDetailsStatusAndDueDate(client, &assignments[k])
+						scrapper.AssignmentDetailsStatusAndDueDate(client, &assignments[k])
 					})
 				}
 				assignWg.Wait()

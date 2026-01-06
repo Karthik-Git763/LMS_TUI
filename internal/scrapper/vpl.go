@@ -1,21 +1,14 @@
 package scrapper
 
 import (
+	"lms/internal/models"
 	"net/http"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
-type VPL struct {
-	Title      string
-	CourseName string
-	URL        string
-	OpenDate   string
-	DueDate    string
-}
-
-func FindVPLInCourse(client *http.Client, course Course) ([]VPL, error) {
+func FindVPLInCourse(client *http.Client, course models.Course) ([]models.VPL, error) {
 	resp, err := client.Get(course.URL)
 	if err != nil {
 		return nil, err
@@ -27,7 +20,7 @@ func FindVPLInCourse(client *http.Client, course Course) ([]VPL, error) {
 		return nil, err
 	}
 
-	var vpls []VPL
+	var vpls []models.VPL
 
 	doc.Find("a[href*='/mod/vpl/view.php']").Each(func(i int, s *goquery.Selection) {
 		title := strings.TrimSpace(s.Text())
@@ -35,7 +28,7 @@ func FindVPLInCourse(client *http.Client, course Course) ([]VPL, error) {
 		if !exists || title == "" {
 			return
 		}
-		vpls = append(vpls, VPL{
+		vpls = append(vpls, models.VPL{
 			Title:      title,
 			CourseName: course.Name,
 			URL:        href,
@@ -44,7 +37,7 @@ func FindVPLInCourse(client *http.Client, course Course) ([]VPL, error) {
 	return vpls, nil
 }
 
-func VPLDetailsStatusAndDueDate(client *http.Client, v *VPL) error {
+func VPLDetailsStatusAndDueDate(client *http.Client, v *models.VPL) error {
     resp, err := client.Get(v.URL)
     if err != nil {
         return err

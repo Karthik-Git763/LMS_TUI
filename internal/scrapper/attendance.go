@@ -2,18 +2,13 @@ package scrapper
 
 import (
 	"fmt"
+	"lms/internal/models"
 	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
-
-type Attendance struct {
-	Session 	string
-	Status 		string
-	Date 		string
-}
 
 func FindAttendanceURL(client *http.Client, courseURL string) (string, error) {
 	resp, err := client.Get(courseURL)
@@ -57,7 +52,7 @@ func FindAttendanceURL(client *http.Client, courseURL string) (string, error) {
 	return attendanceURL, nil
 }
 
-func ScrapeAttendance(client *http.Client, attendanceURL string) ([]Attendance, error) {
+func ScrapeAttendance(client *http.Client, attendanceURL string) ([]models.Attendance, error) {
 	resp, err := client.Get(attendanceURL)
 	if err != nil {
 		return nil, err
@@ -69,7 +64,7 @@ func ScrapeAttendance(client *http.Client, attendanceURL string) ([]Attendance, 
 		return nil, err
 	}
 	
-	var attendanceRecords = []Attendance{}
+	var attendanceRecords = []models.Attendance{}
 	
 	doc.Find("table.generaltable tbody tr").Each(func(i int, row *goquery.Selection) {
 		cols := row.Find("td")
@@ -77,7 +72,7 @@ func ScrapeAttendance(client *http.Client, attendanceURL string) ([]Attendance, 
 			return
 		}
 		
-		record := Attendance {
+		record := models.Attendance {
 			Session: strings.TrimSpace(cols.Eq(0).Text()),
 			Date: strings.TrimSpace(cols.Eq(1).Text()),
 			Status: strings.TrimSpace(cols.Eq(2).Text()),
@@ -87,7 +82,7 @@ func ScrapeAttendance(client *http.Client, attendanceURL string) ([]Attendance, 
 	return attendanceRecords, nil
 }
 
-func CalculateAttendancePercentage(records []Attendance) (attended int, total int) {
+func CalculateAttendancePercentage(records []models.Attendance) (attended int, total int) {
 	for _, record := range records {
 		total++
 		if record.Status == "Present" {
