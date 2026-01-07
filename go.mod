@@ -4,6 +4,7 @@ go 1.25.5
 
 require (
 	github.com/PuerkitoBio/goquery v1.11.0
+	github.com/charmbracelet/bubbles v0.21.0
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/joho/godotenv v1.5.1
 )

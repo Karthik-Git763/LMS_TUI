@@ -54,74 +54,75 @@ func main() {
 
 	courses := scrapper.FetchCourses(client, baseURL)
 
-	attendanceByCourse := make(map[string][]models.Attendance)
-	assignmentByCourse := make(map[string][]models.Assignment)
-	vplByCourse := make(map[string][]models.VPL)
+	p := tea.NewProgram(tui.InitialModel(courses), tea.WithAltScreen())
+	go func() {
+		attendanceByCourse := make(map[string][]models.Attendance)
+		assignmentByCourse := make(map[string][]models.Assignment)
+		vplByCourse := make(map[string][]models.VPL)
+		
+		var mu sync.Mutex
+		
+		var wg sync.WaitGroup
 	
-	var mu sync.Mutex
+		for _, course := range courses {
+			// fmt.Println("\n Course: ", course.Name)
+			p.Send(models.ProgressMsg{Course: course.Name, Type: models.CourseStarted})
+			wg.Go(func() {
+				attendanceURL, err := scrapper.FindAttendanceURL(client, course.URL)
+				if err == nil && attendanceURL != "" {
+					log.Println("Attendance URL found:", attendanceURL)
+					attendanceRecords, err := scrapper.ScrapeAttendance(client, attendanceURL)
+					if err == nil {
+						mu.Lock()
+						attendanceByCourse[course.Name] = attendanceRecords
+						mu.Unlock()
+						log.Println("Attendance records fetched:", len(attendanceRecords))
+					}
+				} else {
+					log.Println("Attendance URL not found")
+				}
 	
-	var wg sync.WaitGroup
-
-	for _, course := range courses {
-		// fmt.Println("\n Course: ", course.Name)
-		wg.Go(func() {
-			attendanceURL, err := scrapper.FindAttendanceURL(client, course.URL)
-			if err == nil && attendanceURL != "" {
-				// mu.Lock()
-				// attendanceByCourse[course.Name] = append(attendanceByCourse[course.Name], models.Attendance{AttendanceURL: attendanceURL})
-				// mu.Unlock()
-				log.Println("Attendance URL found:", attendanceURL)
-				attendanceRecords, err := scrapper.ScrapeAttendance(client, attendanceURL)
+				assignments, err := scrapper.FindAssignmentsInCourse(client, course)
 				if err == nil {
+					var assignWg sync.WaitGroup
+					for k := range assignments {
+						assignWg.Go(func() {
+							scrapper.AssignmentDetailsStatusAndDueDate(client, &assignments[k])
+						})
+					}
+					assignWg.Wait()
+					
 					mu.Lock()
-					attendanceByCourse[course.Name] = attendanceRecords
+					assignmentByCourse[course.Name] = assignments
 					mu.Unlock()
-					log.Println("Attendance records fetched:", len(attendanceRecords))
+					log.Println("Assignments fetched:", len(assignments))
+				} else {
+					log.Println("Error fetching assignments")
 				}
-			} else {
-				log.Println("Attendance URL not found")
-			}
-
-			assignments, err := scrapper.FindAssignmentsInCourse(client, course)
-			if err == nil {
-				var assignWg sync.WaitGroup
-				for k := range assignments {
-					assignWg.Go(func() {
-						scrapper.AssignmentDetailsStatusAndDueDate(client, &assignments[k])
-					})
+	
+				vpls, err := scrapper.FindVPLInCourse(client, course)
+				if err == nil {
+					var vplWg sync.WaitGroup
+					for k := range vpls {
+						vplWg.Go(func() {
+							scrapper.VPLDetailsStatusAndDueDate(client, &vpls[k])
+						})
+					}
+					vplWg.Wait()
+					
+					mu.Lock()
+					vplByCourse[course.Name] = vpls
+					mu.Unlock()
+					log.Println("VPLs fetched:", len(vpls))
+				} else {
+					log.Println("Error fetching VPLs")
 				}
-				assignWg.Wait()
-				
-				mu.Lock()
-				assignmentByCourse[course.Name] = assignments
-				mu.Unlock()
-				log.Println("Assignments fetched:", len(assignments))
-			} else {
-				log.Println("Error fetching assignments")
-			}
-
-			vpls, err := scrapper.FindVPLInCourse(client, course)
-			if err == nil {
-				var vplWg sync.WaitGroup
-				for k := range vpls {
-					vplWg.Go(func() {
-						scrapper.VPLDetailsStatusAndDueDate(client, &vpls[k])
-					})
-				}
-				vplWg.Wait()
-				
-				mu.Lock()
-				vplByCourse[course.Name] = vpls
-				mu.Unlock()
-				log.Println("VPLs fetched:", len(vpls))
-			} else {
-				log.Println("Error fetching VPLs")
-			}
-		})
-	}
-	wg.Wait()
-
-	p := tea.NewProgram(tui.InitialModel(courses, attendanceByCourse, assignmentByCourse, vplByCourse), tea.WithAltScreen())
+				p.Send(models.ProgressMsg{Course: course.Name, Type: models.CourseCompleted})
+			})
+		}
+		wg.Wait()
+		p.Send(models.DataLoadedMsg{Attendance: attendanceByCourse, Assignment: assignmentByCourse, VPL: vplByCourse})
+	}()
 	if _, err := p.Run(); err != nil {
 		panic(err)
 	}

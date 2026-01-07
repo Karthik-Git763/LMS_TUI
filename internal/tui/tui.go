@@ -5,6 +5,7 @@ import (
 	"lms/internal/models"
 	"lms/internal/scrapper"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -17,12 +18,18 @@ type Model struct {
 	selectedCourse 		models.Course
 	assignmentsByCourse map[string][]models.Assignment
 	attendanceByCourse 	map[string][]models.Attendance
-	vplByCourse 		map[string][]models.VPL
+	vplsByCourse 		map[string][]models.VPL
 	selectedURL 		string
+	spinner				spinner.Model
+	active				map[string]bool
+	done				map[string]bool
+	errors 				map[string]error
 }
+
 
 const (
 	menuScreen Screen = iota
+	progressScreen
 	attendanceCourseScreen
 	attendanceDetailsScreen
 	assignmentCourseScreen
@@ -32,22 +39,54 @@ const (
 )
 
 
-func InitialModel(courses []models.Course, attendanceByCourse map[string][]models.Attendance, assignmentsByCourse map[string][]models.Assignment, vplByCourse map[string][]models.VPL) Model {
+func InitialModel(courses []models.Course) Model {
+	s := spinner.New()
+	s.Spinner = spinner.Ellipsis
 	return Model{
-		screen:              menuScreen,
+		screen:              progressScreen,
 		courses:             courses,
-		attendanceByCourse:  attendanceByCourse,
-		assignmentsByCourse: assignmentsByCourse,
-		vplByCourse:         vplByCourse,
+		attendanceByCourse:  make(map[string][]models.Attendance),
+		assignmentsByCourse: make(map[string][]models.Assignment),
+		vplsByCourse:         make(map[string][]models.VPL),
+		spinner:			 s,
+		active:				 make(map[string]bool),
+		done:				 make(map[string]bool),
+		errors:				 make(map[string]error),
 	}
 }
 
 func (m Model) Init() tea.Cmd {
-	return nil
+	return m.spinner.Tick
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+		case spinner.TickMsg:
+			var cmd tea.Cmd
+			m.spinner, cmd = m.spinner.Update(msg)
+			return m, cmd
+		case models.ProgressMsg:
+			switch msg.Type {
+				case models.CourseStarted:
+					m.active[msg.Course] = true
+				case models.CourseCompleted:
+					delete(m.active, msg.Course)
+					m.done[msg.Course] = true
+				case models.CourseError:
+					delete(m.active, msg.Course)
+					m.errors[msg.Course] = msg.Err
+			}
+			if len(m.active) == 0 {
+				m.screen = menuScreen
+			}
+		case models.DataLoadedMsg:
+			m.attendanceByCourse = msg.Attendance
+			m.assignmentsByCourse = msg.Assignment
+			m.vplsByCourse = msg.VPL
+			if m.screen == progressScreen {
+				m.screen = menuScreen
+				m.cursor = 0
+			}
 		case tea.KeyMsg:
 			switch msg.String() {
 			case "o":
@@ -101,7 +140,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.cursor++
 					}
 				case vplDetailsScreen:
-					vpls := m.vplByCourse[m.selectedCourse.Name]
+					vpls := m.vplsByCourse[m.selectedCourse.Name]
 					if m.cursor < len(vpls)-1 {
 						m.cursor++
 					}
@@ -147,6 +186,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) View() string {
 	switch m.screen {
+		case progressScreen:
+			return fmt.Sprintf("%s LOADING COURSES...", m.spinner.View())
 		case menuScreen:
 			return m.MenuView()
 		case attendanceCourseScreen:
@@ -270,7 +311,7 @@ func (m Model) VPLCourseView() string {
 }
 
 func (m Model) VPLDetailsView() string {
-	vpls := m.vplByCourse[m.selectedCourse.Name]
+	vpls := m.vplsByCourse[m.selectedCourse.Name]
 	
 	s := "VPL -> " + m.selectedCourse.Name + "\n\n"
 	

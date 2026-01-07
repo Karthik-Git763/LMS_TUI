@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 type Course struct {
 	Name 			string
 	URL 			string
@@ -30,4 +32,34 @@ type VPL struct {
 	DueDate    string
 }
 
+type CourseData struct {
+	Attendance 	[]Attendance
+	Assignment 	[]Assignment
+	VPL       	[]VPL
+}
 
+type DataLoadedMsg struct {
+	Attendance map[string][]Attendance
+	Assignment map[string][]Assignment
+	VPL		   map[string][]VPL
+}
+
+type Cache struct {
+	Timestamp	time.Time
+	Courses 	[]Course
+	Data 		map[string]CourseData
+}
+
+type ProgressType int
+
+const (
+	CourseStarted ProgressType = iota
+	CourseCompleted
+	CourseError
+)
+
+type ProgressMsg struct {
+	Course string
+	Type   ProgressType
+	Err    error
+}
