@@ -7,6 +7,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -18,6 +19,7 @@ func CreateClient() *http.Client {
 	}
 	return &http.Client{
 		Jar : Jar,
+		Timeout: time.Second * 10,
 	}
 }
 

@@ -80,6 +80,7 @@ func main() {
 					}
 				} else {
 					log.Println("Attendance URL not found")
+					p.Send(models.ProgressMsg{Course: course.Name, Err: err, Type: models.CourseError})
 				}
 	
 				assignments, err := scrapper.FindAssignmentsInCourse(client, course)
@@ -98,6 +99,7 @@ func main() {
 					log.Println("Assignments fetched:", len(assignments))
 				} else {
 					log.Println("Error fetching assignments")
+					p.Send(models.ProgressMsg{Course: course.Name, Err: err, Type: models.CourseError})
 				}
 	
 				vpls, err := scrapper.FindVPLInCourse(client, course)
@@ -116,6 +118,7 @@ func main() {
 					log.Println("VPLs fetched:", len(vpls))
 				} else {
 					log.Println("Error fetching VPLs")
+					p.Send(models.ProgressMsg{Course: course.Name, Err: err, Type: models.CourseError})
 				}
 				p.Send(models.ProgressMsg{Course: course.Name, Type: models.CourseCompleted})
 			})
