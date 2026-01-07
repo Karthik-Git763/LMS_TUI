@@ -40,15 +40,13 @@ const (
 
 
 func InitialModel(courses []models.Course) Model {
-	s := spinner.New()
-	s.Spinner = spinner.Ellipsis
 	return Model{
 		screen:              progressScreen,
 		courses:             courses,
 		attendanceByCourse:  make(map[string][]models.Attendance),
 		assignmentsByCourse: make(map[string][]models.Assignment),
 		vplsByCourse:         make(map[string][]models.VPL),
-		spinner:			 s,
+		spinner:			 newSpinner(),
 		active:				 make(map[string]bool),
 		done:				 make(map[string]bool),
 		errors:				 make(map[string]error),
@@ -66,27 +64,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.spinner, cmd = m.spinner.Update(msg)
 			return m, cmd
 		case models.ProgressMsg:
-			switch msg.Type {
-				case models.CourseStarted:
-					m.active[msg.Course] = true
-				case models.CourseCompleted:
-					delete(m.active, msg.Course)
-					m.done[msg.Course] = true
-				case models.CourseError:
-					delete(m.active, msg.Course)
-					m.errors[msg.Course] = msg.Err
-			}
-			if len(m.active) == 0 {
-				m.screen = menuScreen
-			}
+			m.applyProgress(msg)
 		case models.DataLoadedMsg:
-			m.attendanceByCourse = msg.Attendance
-			m.assignmentsByCourse = msg.Assignment
-			m.vplsByCourse = msg.VPL
-			if m.screen == progressScreen {
-				m.screen = menuScreen
-				m.cursor = 0
-			}
+			m.applyDataLoaded(msg)
 		case tea.KeyMsg:
 			switch msg.String() {
 			case "o":
@@ -187,7 +167,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) View() string {
 	switch m.screen {
 		case progressScreen:
-			return fmt.Sprintf("%s LOADING COURSES...", m.spinner.View())
+			return fmt.Sprintf("LOADING COURSES%s", m.spinner.View())
 		case menuScreen:
 			return m.MenuView()
 		case attendanceCourseScreen:
@@ -325,4 +305,39 @@ func (m Model) VPLDetailsView() string {
 	}
 	s += "\nq to back • Ctrl+c to exit • o open in browser\n"
 	return s
+}
+
+func newSpinner() spinner.Model {
+	s := spinner.New()
+	s.Spinner = spinner.Ellipsis
+	return s
+}
+
+func (m *Model) applyProgress(msg models.ProgressMsg) {
+	switch msg.Type {
+	case models.CourseStarted:
+		m.active[msg.Course] = true
+	case models.CourseCompleted:
+		delete(m.active, msg.Course)
+		m.done[msg.Course] = true
+	case models.CourseError:
+		delete(m.active, msg.Course)
+		m.errors[msg.Course] = msg.Err
+	}
+
+	if len(m.active) == 0 && m.screen == progressScreen {
+		m.screen = menuScreen
+		m.cursor = 0
+	}
+}
+
+func (m *Model) applyDataLoaded(msg models.DataLoadedMsg) {
+	m.attendanceByCourse = msg.Attendance
+	m.assignmentsByCourse = msg.Assignment
+	m.vplsByCourse = msg.VPL
+
+	if m.screen == progressScreen {
+		m.screen = menuScreen
+		m.cursor = 0
+	}
 }
