@@ -55,17 +55,16 @@ func main() {
 	courses := scrapper.FetchCourses(client, baseURL)
 
 	p := tea.NewProgram(tui.InitialModel(courses), tea.WithAltScreen())
-	go func() {
+	go func() {	
 		attendanceByCourse := make(map[string][]models.Attendance)
 		assignmentByCourse := make(map[string][]models.Assignment)
 		vplByCourse := make(map[string][]models.VPL)
-		
+
 		var mu sync.Mutex
 		
 		var wg sync.WaitGroup
 	
 		for _, course := range courses {
-			// fmt.Println("\n Course: ", course.Name)
 			p.Send(models.ProgressMsg{Course: course.Name, Type: models.CourseStarted})
 			wg.Go(func() {
 				attendanceURL, err := scrapper.FindAttendanceURL(client, course.URL)

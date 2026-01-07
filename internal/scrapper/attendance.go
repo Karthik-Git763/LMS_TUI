@@ -73,8 +73,8 @@ func ScrapeAttendance(client *http.Client, attendanceURL string) ([]models.Atten
 		}
 		
 		record := models.Attendance {
-			Session: strings.TrimSpace(cols.Eq(0).Text()),
-			Date: strings.TrimSpace(cols.Eq(1).Text()),
+			Date: strings.TrimSpace(cols.Eq(0).Text()),
+			Session: strings.TrimSpace(cols.Eq(1).Text()),
 			Status: strings.TrimSpace(cols.Eq(2).Text()),
 			AttendanceURL: attendanceURL,
 		}

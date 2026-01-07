@@ -6,10 +6,16 @@ import (
 	"lms/internal/scrapper"
 
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type Screen int
+
+var baseStyle = lipgloss.NewStyle().
+	BorderStyle(lipgloss.NormalBorder()).
+	BorderForeground(lipgloss.Color("240"))
 
 type Model struct {
 	screen 				Screen
@@ -24,6 +30,7 @@ type Model struct {
 	active				map[string]bool
 	done				map[string]bool
 	errors 				map[string]error
+	table				table.Model
 }
 
 
@@ -58,110 +65,119 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
 	switch msg := msg.(type) {
-		case spinner.TickMsg:
-			var cmd tea.Cmd
-			m.spinner, cmd = m.spinner.Update(msg)
-			return m, cmd
-		case models.ProgressMsg:
-			m.applyProgress(msg)
-		case models.DataLoadedMsg:
-			m.applyDataLoaded(msg)
-		case tea.KeyMsg:
-			switch msg.String() {
-			case "o":
-				if m.selectedURL != "" {
-					models.OpenBrowser(m.selectedURL)
-				}
-			case "q":
-				switch m.screen {
-				case attendanceDetailsScreen:
-					m.screen = attendanceCourseScreen
-				case assignmentDetailsScreen:
-					m.screen = assignmentCourseScreen
-				case vplDetailsScreen:
-					m.screen = vplCourseScreen
-				default:
-					m.screen = menuScreen
-					m.cursor = 0
-				}
-			case "ctrl+c":
-				return m, tea.Quit
-			case "up", "k":
-				switch m.screen {
-				case menuScreen, attendanceCourseScreen, assignmentCourseScreen, vplCourseScreen:
-					if m.cursor > 0 {
-						m.cursor--
-					}
-				case assignmentDetailsScreen:
-					if m.cursor > 0 {
-						m.cursor--
-					}
-				case vplDetailsScreen:
-					if m.cursor > 0 {
-						m.cursor--
-					}
-				case attendanceDetailsScreen:
-					// no navigation needed
-				}
-			case "down", "j":
-				switch m.screen {
-				case menuScreen:
-					if m.cursor < 3 {
-						m.cursor++
-					}
-			 	case attendanceCourseScreen, assignmentCourseScreen, vplCourseScreen:
-					if m.cursor < len(m.courses)-1 {
-						m.cursor++
-					}
-				case assignmentDetailsScreen:
-					assignments := m.assignmentsByCourse[m.selectedCourse.Name]
-					if m.cursor < len(assignments)-1 {
-						m.cursor++
-					}
-				case vplDetailsScreen:
-					vpls := m.vplsByCourse[m.selectedCourse.Name]
-					if m.cursor < len(vpls)-1 {
-						m.cursor++
-					}
-				case attendanceDetailsScreen:
-					// no navigation needed
-				}
-			case "enter":
-				switch m.screen {
-				case menuScreen:
-					if m.cursor == 0 {
-						m.screen = attendanceCourseScreen
-					}
-					if m.cursor == 1 {
-						m.screen = assignmentCourseScreen
-					}
-					if m.cursor == 2 {
-						m.screen = vplCourseScreen
-					}
-					if m.cursor == 3 {
-						return m, tea.Quit
-					}
-				case attendanceCourseScreen:
-					m.selectedCourse = m.courses[m.cursor]
-					records := m.attendanceByCourse[m.selectedCourse.Name]
-					if len(records) > 0 {
-						m.selectedURL = records[0].AttendanceURL
-					}
-					m.screen = attendanceDetailsScreen
-					m.cursor = 0
-				case assignmentCourseScreen:
-					m.selectedCourse = m.courses[m.cursor]
-					m.screen = assignmentDetailsScreen
-					m.cursor = 0
-				case vplCourseScreen:
-					m.selectedCourse = m.courses[m.cursor]
-					m.screen = vplDetailsScreen
-					m.cursor = 0
-				}
+	case spinner.TickMsg:
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
+	case models.ProgressMsg:
+		m.applyProgress(msg)
+	case models.DataLoadedMsg:
+		m.applyDataLoaded(msg)
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc":
+			if m.table.Focused() {
+				m.table.Blur()
+			} else {
+				m.table.Focus()
 			}
+		case "o":
+			if m.selectedURL != "" {
+				models.OpenBrowser(m.selectedURL)
+			}
+		case "q":
+			switch m.screen {
+			case attendanceDetailsScreen:
+				m.screen = attendanceCourseScreen
+			case assignmentDetailsScreen:
+				m.screen = assignmentCourseScreen
+			case vplDetailsScreen:
+				m.screen = vplCourseScreen
+			default:
+				m.screen = menuScreen
+				m.cursor = 0
+			}
+		case "ctrl+c":
+			return m, tea.Quit
+		case "up", "k":
+			switch m.screen {
+			case menuScreen, attendanceCourseScreen, assignmentCourseScreen, vplCourseScreen:
+				if m.cursor > 0 {
+					m.cursor--
+				}
+			case assignmentDetailsScreen:
+				if m.cursor > 0 {
+					m.cursor--
+				}
+			case vplDetailsScreen:
+				if m.cursor > 0 {
+					m.cursor--
+				}
+			case attendanceDetailsScreen:
+				// no navigation needed
+			}
+		case "down", "j":
+			switch m.screen {
+			case menuScreen:
+				if m.cursor < 3 {
+					m.cursor++
+				}
+		 	case attendanceCourseScreen, assignmentCourseScreen, vplCourseScreen:
+				if m.cursor < len(m.courses)-1 {
+					m.cursor++
+				}
+			case assignmentDetailsScreen:
+				assignments := m.assignmentsByCourse[m.selectedCourse.Name]
+				if m.cursor < len(assignments)-1 {
+					m.cursor++
+				}
+			case vplDetailsScreen:
+				vpls := m.vplsByCourse[m.selectedCourse.Name]
+				if m.cursor < len(vpls)-1 {
+					m.cursor++
+				}
+			case attendanceDetailsScreen:
+				// no navigation needed
+			}
+		case "enter":
+			switch m.screen {
+			case menuScreen:
+				if m.cursor == 0 {
+					m.screen = attendanceCourseScreen
+				}
+				if m.cursor == 1 {
+					m.screen = assignmentCourseScreen
+				}
+				if m.cursor == 2 {
+					m.screen = vplCourseScreen
+				}
+				if m.cursor == 3 {
+					return m, tea.Quit
+				}
+			case attendanceCourseScreen:
+				m.selectedCourse = m.courses[m.cursor]
+				records := m.attendanceByCourse[m.selectedCourse.Name]
+				if len(records) > 0 {
+					m.selectedURL = records[0].AttendanceURL
+				}
+				// Build a table only for the selected course
+				m.table = AttendanceTable(records)
+				m.screen = attendanceDetailsScreen
+				m.cursor = 0
+			case assignmentCourseScreen:
+				m.selectedCourse = m.courses[m.cursor]
+				m.screen = assignmentDetailsScreen
+				m.cursor = 0
+			case vplCourseScreen:
+				m.selectedCourse = m.courses[m.cursor]
+				m.screen = vplDetailsScreen
+				m.cursor = 0
+			}
+		}
 	}
-	return m, nil
+	m.table, cmd = m.table.Update(msg)
+	return m, cmd
 }
 
 func (m Model) View() string {
@@ -183,7 +199,7 @@ func (m Model) View() string {
 		case vplDetailsScreen:
 			return m.VPLDetailsView()
 	}
-	return ""
+	return baseStyle.Render(m.table.View()) + "\n"
 }
 
 func (m Model) MenuView() string {
@@ -233,9 +249,8 @@ func (m Model) AttendanceDetailsView() string {
 	if percent < 80 {
 		warning = "Warning: Low attendance!"
 	}
-	for _, record := range records {
-		s += fmt.Sprintf("%s | %s | %s \n", record.Date, record.Session, record.Status)
-	}
+	// Render the prepared table instead of plain lines
+	s += baseStyle.Render(m.table.View()) + "\n"
 	
 	s += fmt.Sprintf("Overall: %d/%d (%.2f%%)\n%s\n", attended, total, percent, warning)
 	if len(records) > 0 {
@@ -307,37 +322,3 @@ func (m Model) VPLDetailsView() string {
 	return s
 }
 
-func newSpinner() spinner.Model {
-	s := spinner.New()
-	s.Spinner = spinner.Ellipsis
-	return s
-}
-
-func (m *Model) applyProgress(msg models.ProgressMsg) {
-	switch msg.Type {
-	case models.CourseStarted:
-		m.active[msg.Course] = true
-	case models.CourseCompleted:
-		delete(m.active, msg.Course)
-		m.done[msg.Course] = true
-	case models.CourseError:
-		delete(m.active, msg.Course)
-		m.errors[msg.Course] = msg.Err
-	}
-
-	if len(m.active) == 0 && m.screen == progressScreen {
-		m.screen = menuScreen
-		m.cursor = 0
-	}
-}
-
-func (m *Model) applyDataLoaded(msg models.DataLoadedMsg) {
-	m.attendanceByCourse = msg.Attendance
-	m.assignmentsByCourse = msg.Assignment
-	m.vplsByCourse = msg.VPL
-
-	if m.screen == progressScreen {
-		m.screen = menuScreen
-		m.cursor = 0
-	}
-}

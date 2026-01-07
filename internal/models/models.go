@@ -18,9 +18,9 @@ type Assignment struct {
 }
 
 type Attendance struct {
+	Date 		string
 	Session 	string
 	Status 		string
-	Date 		string
 	AttendanceURL 	string
 }
 
