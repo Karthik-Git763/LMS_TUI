@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -31,6 +32,9 @@ type Model struct {
 	done				map[string]bool
 	errors 				map[string]error
 	table				table.Model
+	content 			string
+	ready				bool
+	viewport 			viewport.Model
 }
 
 
@@ -66,6 +70,7 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
+	var cmds []tea.Cmd
 	switch msg := msg.(type) {
 	case spinner.TickMsg:
 		m.spinner, cmd = m.spinner.Update(msg)
@@ -175,37 +180,63 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor = 0
 			}
 		}
+		case tea.WindowSizeMsg:
+			headerHeight := lipgloss.Height(m.HeaderView())
+			footerHeight := lipgloss.Height(m.FooterView())
+			verticalMarginHeight := headerHeight + footerHeight
+			if !m.ready {
+				m.viewport = viewport.New(msg.Width, msg.Height-verticalMarginHeight)
+				m.viewport.YPosition = headerHeight
+				m.ready = true
+			} else {
+				m.viewport.Width = msg.Width
+				m.viewport.Height = msg.Height - verticalMarginHeight
+			}
 	}
+	m.viewport, cmd = m.viewport.Update(msg)
+	cmds = append(cmds, cmd)
 	m.table, cmd = m.table.Update(msg)
-	return m, cmd
+	cmds = append(cmds, cmd)
+	return m, tea.Batch(cmds...)
 }
 
 func (m Model) View() string {
-	switch m.screen {
-		case progressScreen:
-			return fmt.Sprintf("LOADING COURSES%s", m.spinner.View())
-		case menuScreen:
-			return m.MenuView()
-		case attendanceCourseScreen:
-			return m.AttendanceCourseView()
-		case attendanceDetailsScreen:
-			return m.AttendanceDetailsView()
-		case assignmentCourseScreen:
-			return m.AssignmentCourseView()
-		case assignmentDetailsScreen:
-			return m.AssignmentDetailView()
-		case vplCourseScreen:
-			return m.VPLCourseView()
-		case vplDetailsScreen:
-			return m.VPLDetailsView()
+	if !m.ready {
+		return "\n Initializing..."
 	}
-	return baseStyle.Render(m.table.View()) + "\n"
+
+	var body string
+
+	switch m.screen {
+	case progressScreen:
+		body = fmt.Sprintf("LOADING COURSES%s", m.spinner.View())
+	case menuScreen:
+		body = m.MenuView()
+	case attendanceCourseScreen:
+		body = m.AttendanceCourseView()
+	case attendanceDetailsScreen:
+		body = m.AttendanceDetailsView()
+	case assignmentCourseScreen:
+		body = m.AssignmentCourseView()
+	case assignmentDetailsScreen:
+		body = m.AssignmentDetailView()
+	case vplCourseScreen:
+		body = m.VPLCourseView()
+	case vplDetailsScreen:
+		body = m.VPLDetailsView()
+	default:
+		body = ""
+	}
+
+	m.viewport.SetContent(body)
+
+	return fmt.Sprintf("%s\n%s\n%s", m.HeaderView(), m.viewport.View(), m.FooterView())
 }
 
 func (m Model) MenuView() string {
 	options := []string{"Attendance", "Assignments", "VPL", "Exit"}
 	
-	s := "LMS Terminal Client\n\n"
+	s := "Select an option:\n\n"
 	
 	for i, option := range options {
 		cursor := " "
