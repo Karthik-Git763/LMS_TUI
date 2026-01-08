@@ -5,6 +5,7 @@ import (
 	"lms/internal/models"
 	"lms/internal/scrapper"
 
+	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -35,12 +36,13 @@ type Model struct {
 	content 			string
 	ready				bool
 	viewport 			viewport.Model
+	list 				list.Model
 }
 
 
 const (
-	menuScreen Screen = iota
-	progressScreen
+	progressScreen Screen = iota
+	menuScreen
 	attendanceCourseScreen
 	attendanceDetailsScreen
 	assignmentCourseScreen
@@ -61,6 +63,7 @@ func InitialModel(courses []models.Course) Model {
 		active:				 make(map[string]bool),
 		done:				 make(map[string]bool),
 		errors:				 make(map[string]error),
+		list:				 list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
 	}
 }
 
@@ -184,6 +187,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			headerHeight := lipgloss.Height(m.HeaderView())
 			footerHeight := lipgloss.Height(m.FooterView())
 			verticalMarginHeight := headerHeight + footerHeight
+			h, v := docStyle.GetFrameSize()
+			m.list.SetSize(msg.Width-h, msg.Height-v)
 			if !m.ready {
 				m.viewport = viewport.New(msg.Width, msg.Height-verticalMarginHeight)
 				m.viewport.YPosition = headerHeight
@@ -236,28 +241,28 @@ func (m Model) View() string {
 func (m Model) MenuView() string {
 	options := []string{"Attendance", "Assignments", "VPL", "Exit"}
 	
-	s := "Select an option:\n\n"
+	s := titleStyle.Render("Select an option") + "\n\n"
 	
 	for i, option := range options {
-		cursor := " "
 		if i == m.cursor {
-			cursor = ">"
+			s += selectedStyle.Render(option) + "\n"
+		} else {
+			s += normalStyle.Render(option) + "\n"
 		}
-		s += fmt.Sprintf("%s %s\n", cursor, option)
 	}
 	s += "\n↑/↓ or j/k to move • Enter to select • Ctrl+c to exit\n"
 	return s
 }
 
 func (m Model) AttendanceCourseView() string {
-	s := "Attendance -> Select Course\n\n"
+	s := titleStyle.Render("Attendance -> Select Course") + "\n\n"
 	
 	for i, course := range m.courses {
-		cursor := ""
 		if m.cursor == i {
-			cursor = ">"
+			s += selectedStyle.Render(course.Name) + "\n"
+		} else {
+			s += normalStyle.Render(course.Name) + "\n"
 		}
-		s += cursor + " " + course.Name + "\n" 
 	}
 	s += "\n↑/↓ navigate • Enter select • q to back • Ctrl+c to exit\n"
 	return s
@@ -266,7 +271,7 @@ func (m Model) AttendanceCourseView() string {
 func (m Model) AttendanceDetailsView() string {
 	records := m.attendanceByCourse[m.selectedCourse.Name]
 	
-	s := "Attendance -> " + m.selectedCourse.Name + "\n\n"
+	s := titleStyle.Render("Attendance -> " + m.selectedCourse.Name) + "\n\n"
 	
 	if len(records) == 0 {
 		s += "No attendance records found for this course.\n\n"
@@ -283,7 +288,7 @@ func (m Model) AttendanceDetailsView() string {
 	// Render the prepared table instead of plain lines
 	s += baseStyle.Render(m.table.View()) + "\n"
 	
-	s += fmt.Sprintf("Overall: %d/%d (%.2f%%)\n%s\n", attended, total, percent, warning)
+	s += descStyle.Render(fmt.Sprintf("Overall: %d/%d (%.2f%%)\n%s\n", attended, total, percent, warning))
 	if len(records) > 0 {
 		m.selectedURL = records[0].AttendanceURL
 		s += fmt.Sprintf("\nq to back • Ctrl+c to exit • o open in browser • %s\n", m.selectedURL)
@@ -292,62 +297,67 @@ func (m Model) AttendanceDetailsView() string {
 }
 
 func (m Model) AssignmentCourseView() string {
-	s := "Assignments -> Select Course\n\n"
+	s := titleStyle.Render("Assignments → Select Course") + "\n\n"
+	s += descStyle.Render(fmt.Sprintf("%d courses", len(m.courses))) + "\n\n"
 	
 	for i, course := range m.courses {
-		cursor := ""
 		if i == m.cursor {
-			cursor = ">"
+			s += selectedStyle.Render(course.Name) + "\n"
+		} else {
+			s += normalStyle.Render(course.Name) + "\n"
 		}
-		s += cursor + " " + course.Name + "\n"
 	}
-	s += "↑/↓ navigate • Enter select • q to back • Ctrl+c to exit\n"
+	s += "\n↑/↓ navigate • Enter select • q to back • Ctrl+c to exit\n"
 	return s
 }
 
 func (m Model) AssignmentDetailView() string {
 	assignments := m.assignmentsByCourse[m.selectedCourse.Name]
 	
-	s := "Assignments -> " + m.selectedCourse.Name + "\n\n"
+	s := titleStyle.Render("Assignments → " + m.selectedCourse.Name) + "\n\n"
+	s += descStyle.Render(fmt.Sprintf("%d assignments", len(assignments))) + "\n\n"
 	
 	for i, assignment := range assignments {
-		cursor := ""
+		item := assignment.Title + "\n" + descStyle.Render("Due: "+assignment.DueDate+" | Status: "+assignment.Status+" | Grade: "+assignment.Grade)
 		if i == m.cursor {
-			cursor = ">"
-			// m.selectedURL = assignment.URL
+			s += selectedStyle.Render(item) + "\n\n"
+		} else {
+			s += normalStyle.Render(item) + "\n\n"
 		}
-		s += cursor + " " + assignment.Title + "\nDue: " + assignment.DueDate + "\nStatus: " + assignment.Status + "\nGrade: " + assignment.Grade + "\n"
 	}
 	s += "\nq to back • Ctrl+c to exit • o open in browser\n"
 	return s
 }
 
 func (m Model) VPLCourseView() string {
-	s := "VPL -> Select Course\n\n"
+	s := titleStyle.Render("VPL → Select Course") + "\n\n"
+	s += descStyle.Render(fmt.Sprintf("%d courses", len(m.courses))) + "\n\n"
 	
 	for i, course := range m.courses {
-		cursor := ""
 		if i == m.cursor {
-			cursor = ">"
+			s += selectedStyle.Render(course.Name) + "\n"
+		} else {
+			s += normalStyle.Render(course.Name) + "\n"
 		}
-		s += cursor + " " + course.Name + "\n"
 	}
-	s += "↑/↓ navigate • Enter select • q to back • Ctrl+c to exit\n"
+	s += "\n↑/↓ navigate • Enter select • q to back • Ctrl+c to exit\n"
 	return s
 }
 
 func (m Model) VPLDetailsView() string {
 	vpls := m.vplsByCourse[m.selectedCourse.Name]
 	
-	s := "VPL -> " + m.selectedCourse.Name + "\n\n"
+	s := titleStyle.Render("VPL → " + m.selectedCourse.Name) + "\n\n"
+	s += descStyle.Render(fmt.Sprintf("%d VPLs", len(vpls))) + "\n\n"
 	
 	for i, vpl := range vpls {
-		cursor := ""
+		item := vpl.Title + "\n" + descStyle.Render("Due: "+vpl.DueDate)
 		if i == m.cursor {
-			cursor = ">"
+			s += selectedStyle.Render(item) + "\n\n"
 			m.selectedURL = vpl.URL
+		} else {
+			s += normalStyle.Render(item) + "\n\n"
 		}
-		s += cursor + " " + vpl.Title + "\nDue: " + vpl.DueDate + "\n"
 	}
 	s += "\nq to back • Ctrl+c to exit • o open in browser\n"
 	return s

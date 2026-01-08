@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	titleStyle = func() lipgloss.Style {
+	viewportTitleStyle = func() lipgloss.Style {
 		b := lipgloss.RoundedBorder()
 		b.Right = "├"
 		
@@ -24,7 +24,7 @@ var (
 )
 
 func (m *Model) HeaderView() string {
-	title := titleStyle.Render("LMS Terminal")
+	title := viewportTitleStyle.Render("LMS Terminal")
 	line := strings.Repeat("-", max(0, m.viewport.Width-lipgloss.Width(title)))
 	return lipgloss.JoinHorizontal(lipgloss.Center, title, line)
 }
