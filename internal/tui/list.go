@@ -32,10 +32,12 @@ var (
 )
 
 type Item struct {
-	title       string
-	desc string
+	ItemTitle    string
+	ItemDesc     string
+	ItemUrl      string
 }
 
-func (i Item) Title() string {return i.title}
-func (i Item) Description() string {return i.desc}
-func (i Item) FilterValue() string {return i.title}
+func (i Item) Title() string {return i.ItemTitle}
+func (i Item) Description() string {return i.ItemDesc}
+func (i Item) Url() string {return i.ItemUrl}
+func (i Item) FilterValue() string {return i.ItemTitle}

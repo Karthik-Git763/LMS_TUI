@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -25,12 +24,12 @@ var (
 
 func (m *Model) HeaderView() string {
 	title := viewportTitleStyle.Render("LMS Terminal")
-	line := strings.Repeat("-", max(0, m.viewport.Width-lipgloss.Width(title)))
+	line := strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(title)))
 	return lipgloss.JoinHorizontal(lipgloss.Center, title, line)
 }
 
-func (m *Model) FooterView() string {
-	info := contentStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
-	line := strings.Repeat("-", max(0, m.viewport.Width-lipgloss.Width(info)))
-	return lipgloss.JoinHorizontal(lipgloss.Center, line, info)
-}
+// func (m *Model) FooterView() string {
+// 	info := contentStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
+// 	line := strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(info)))
+// 	return lipgloss.JoinHorizontal(lipgloss.Left, line, info)
+// }

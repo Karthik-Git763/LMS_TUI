@@ -37,6 +37,8 @@ type Model struct {
 	ready				bool
 	viewport 			viewport.Model
 	list 				list.Model
+	assignmentList 		list.Model
+	vplList				list.Model
 }
 
 
@@ -53,17 +55,39 @@ const (
 
 
 func InitialModel(courses []models.Course) Model {
+	delegate := list.NewDefaultDelegate()
+	
+	// Create assignment list with help and status enabled
+	assignmentList := list.New([]list.Item{}, delegate, 0, 0)
+	assignmentList.SetShowHelp(true)
+	assignmentList.SetShowStatusBar(true)
+	assignmentList.SetFilteringEnabled(true)
+	assignmentList.SetShowPagination(true)
+	assignmentList.Paginator.ActiveDot = "●"
+	assignmentList.Paginator.InactiveDot = "○"
+	
+	// Create VPL list with help and status enabled
+	vplList := list.New([]list.Item{}, delegate, 0, 0)
+	vplList.SetShowHelp(true)
+	vplList.SetShowStatusBar(true)
+	vplList.SetFilteringEnabled(true)
+	vplList.SetShowPagination(true)
+	vplList.Paginator.ActiveDot = "●"
+	vplList.Paginator.InactiveDot = "○"
+	
 	return Model{
 		screen:              progressScreen,
 		courses:             courses,
 		attendanceByCourse:  make(map[string][]models.Attendance),
 		assignmentsByCourse: make(map[string][]models.Assignment),
-		vplsByCourse:         make(map[string][]models.VPL),
-		spinner:			 newSpinner(),
-		active:				 make(map[string]bool),
-		done:				 make(map[string]bool),
-		errors:				 make(map[string]error),
-		list:				 list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
+		vplsByCourse:        make(map[string][]models.VPL),
+		spinner:             newSpinner(),
+		active:              make(map[string]bool),
+		done:                make(map[string]bool),
+		errors:              make(map[string]error),
+		list:                list.New([]list.Item{}, delegate, 0, 0),
+		assignmentList:      assignmentList,
+		vplList:             vplList,
 	}
 }
 
@@ -114,16 +138,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.cursor > 0 {
 					m.cursor--
 				}
-			case assignmentDetailsScreen:
-				if m.cursor > 0 {
-					m.cursor--
-				}
-			case vplDetailsScreen:
-				if m.cursor > 0 {
-					m.cursor--
-				}
-			case attendanceDetailsScreen:
-				// no navigation needed
+			case attendanceDetailsScreen, assignmentDetailsScreen, vplDetailsScreen:
+				// no navigation needed // List navigation
 			}
 		case "down", "j":
 			switch m.screen {
@@ -135,17 +151,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.cursor < len(m.courses)-1 {
 					m.cursor++
 				}
-			case assignmentDetailsScreen:
-				assignments := m.assignmentsByCourse[m.selectedCourse.Name]
-				if m.cursor < len(assignments)-1 {
-					m.cursor++
-				}
-			case vplDetailsScreen:
-				vpls := m.vplsByCourse[m.selectedCourse.Name]
-				if m.cursor < len(vpls)-1 {
-					m.cursor++
-				}
-			case attendanceDetailsScreen:
+			case attendanceDetailsScreen, assignmentDetailsScreen, vplDetailsScreen:
 				// no navigation needed
 			}
 		case "enter":
@@ -175,20 +181,43 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor = 0
 			case assignmentCourseScreen:
 				m.selectedCourse = m.courses[m.cursor]
+				assignments := m.assignmentsByCourse[m.selectedCourse.Name]
+				items := make([]list.Item, len(assignments))
+				for i, assignment := range assignments {
+					items[i] = Item{
+						ItemTitle: assignment.Title,
+						ItemDesc: fmt.Sprintf("Open Date: %s | Due Date: %s | Status: %s | Grade: %s\n", assignment.OpenDate, assignment.DueDate, assignment.Status, assignment.Grade),
+						ItemUrl: assignment.URL,
+					}
+				}
+				m.assignmentList.SetItems(items)
+				m.assignmentList.Title = fmt.Sprintf("Assignments for %s", m.selectedCourse.Name)
 				m.screen = assignmentDetailsScreen
 				m.cursor = 0
 			case vplCourseScreen:
 				m.selectedCourse = m.courses[m.cursor]
+				vpls := m.vplsByCourse[m.selectedCourse.Name]
+				items := make([]list.Item, len(vpls))
+				for i, vpl := range vpls {
+					items[i] = Item {
+						ItemTitle: vpl.Title,
+						ItemDesc: fmt.Sprintf("Open Date: %s | Due Date: %s", vpl.OpenDate, vpl.DueDate),
+						ItemUrl: vpl.URL,
+					}
+				}
+				m.vplList.SetItems(items)
+				m.vplList.Title = fmt.Sprintf("VPLs for %s", m.selectedCourse.Name)
 				m.screen = vplDetailsScreen
 				m.cursor = 0
 			}
 		}
 		case tea.WindowSizeMsg:
 			headerHeight := lipgloss.Height(m.HeaderView())
-			footerHeight := lipgloss.Height(m.FooterView())
-			verticalMarginHeight := headerHeight + footerHeight
+			verticalMarginHeight := 2 * headerHeight
 			h, v := docStyle.GetFrameSize()
 			m.list.SetSize(msg.Width-h, msg.Height-v)
+			m.assignmentList.SetSize(msg.Width, msg.Height - verticalMarginHeight)
+			m.vplList.SetSize(msg.Width, msg.Height - verticalMarginHeight)
 			if !m.ready {
 				m.viewport = viewport.New(msg.Width, msg.Height-verticalMarginHeight)
 				m.viewport.YPosition = headerHeight
@@ -202,6 +231,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmds = append(cmds, cmd)
 	m.table, cmd = m.table.Update(msg)
 	cmds = append(cmds, cmd)
+	
+	// Update List based on current screen
+	switch m.screen {
+		case assignmentDetailsScreen:
+			m.assignmentList, cmd = m.assignmentList.Update(msg)
+			cmds = append(cmds, cmd)
+			selectedItem, ok := m.assignmentList.SelectedItem().(Item)
+			if ok {
+				m.selectedURL = selectedItem.ItemUrl
+			} 
+		case vplDetailsScreen:
+			m.vplList, cmd = m.vplList.Update(msg)
+			cmds = append(cmds, cmd)
+			selectedItem, ok := m.vplList.SelectedItem().(Item)
+			if ok {
+				m.selectedURL = selectedItem.ItemUrl
+			}
+	}
 	return m, tea.Batch(cmds...)
 }
 
@@ -224,24 +271,25 @@ func (m Model) View() string {
 	case assignmentCourseScreen:
 		body = m.AssignmentCourseView()
 	case assignmentDetailsScreen:
-		body = m.AssignmentDetailView()
+		return m.HeaderView() + m.assignmentList.View()
 	case vplCourseScreen:
 		body = m.VPLCourseView()
 	case vplDetailsScreen:
-		body = m.VPLDetailsView()
+		return m.HeaderView() + m.vplList.View()
 	default:
 		body = ""
 	}
 
 	m.viewport.SetContent(body)
 
-	return fmt.Sprintf("%s\n%s\n%s", m.HeaderView(), m.viewport.View(), m.FooterView())
+	return fmt.Sprintf("%s\n%s\n", m.HeaderView(), m.viewport.View())
 }
 
 func (m Model) MenuView() string {
 	options := []string{"Attendance", "Assignments", "VPL", "Exit"}
 	
 	s := titleStyle.Render("Select an option") + "\n\n"
+	s += descStyle.Render(fmt.Sprintf("%d items", len(options))) + "\n\n"
 	
 	for i, option := range options {
 		if i == m.cursor {
@@ -311,23 +359,6 @@ func (m Model) AssignmentCourseView() string {
 	return s
 }
 
-func (m Model) AssignmentDetailView() string {
-	assignments := m.assignmentsByCourse[m.selectedCourse.Name]
-	
-	s := titleStyle.Render("Assignments → " + m.selectedCourse.Name) + "\n\n"
-	s += descStyle.Render(fmt.Sprintf("%d assignments", len(assignments))) + "\n\n"
-	
-	for i, assignment := range assignments {
-		item := assignment.Title + "\n" + descStyle.Render("Due: "+assignment.DueDate+" | Status: "+assignment.Status+" | Grade: "+assignment.Grade)
-		if i == m.cursor {
-			s += selectedStyle.Render(item) + "\n\n"
-		} else {
-			s += normalStyle.Render(item) + "\n\n"
-		}
-	}
-	s += "\nq to back • Ctrl+c to exit • o open in browser\n"
-	return s
-}
 
 func (m Model) VPLCourseView() string {
 	s := titleStyle.Render("VPL → Select Course") + "\n\n"
@@ -341,25 +372,6 @@ func (m Model) VPLCourseView() string {
 		}
 	}
 	s += "\n↑/↓ navigate • Enter select • q to back • Ctrl+c to exit\n"
-	return s
-}
-
-func (m Model) VPLDetailsView() string {
-	vpls := m.vplsByCourse[m.selectedCourse.Name]
-	
-	s := titleStyle.Render("VPL → " + m.selectedCourse.Name) + "\n\n"
-	s += descStyle.Render(fmt.Sprintf("%d VPLs", len(vpls))) + "\n\n"
-	
-	for i, vpl := range vpls {
-		item := vpl.Title + "\n" + descStyle.Render("Due: "+vpl.DueDate)
-		if i == m.cursor {
-			s += selectedStyle.Render(item) + "\n\n"
-			m.selectedURL = vpl.URL
-		} else {
-			s += normalStyle.Render(item) + "\n\n"
-		}
-	}
-	s += "\nq to back • Ctrl+c to exit • o open in browser\n"
 	return s
 }
 
