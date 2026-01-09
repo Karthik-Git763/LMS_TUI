@@ -181,30 +181,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor = 0
 			case assignmentCourseScreen:
 				m.selectedCourse = m.courses[m.cursor]
-				assignments := m.assignmentsByCourse[m.selectedCourse.Name]
-				items := make([]list.Item, len(assignments))
-				for i, assignment := range assignments {
-					items[i] = Item{
-						ItemTitle: assignment.Title,
-						ItemDesc: fmt.Sprintf("Open Date: %s | Due Date: %s | Status: %s | Grade: %s\n", assignment.OpenDate, assignment.DueDate, assignment.Status, assignment.Grade),
-						ItemUrl: assignment.URL,
-					}
-				}
+				items := m.AssignmentListView(m.selectedCourse.Name)
 				m.assignmentList.SetItems(items)
 				m.assignmentList.Title = fmt.Sprintf("Assignments for %s", m.selectedCourse.Name)
 				m.screen = assignmentDetailsScreen
 				m.cursor = 0
 			case vplCourseScreen:
 				m.selectedCourse = m.courses[m.cursor]
-				vpls := m.vplsByCourse[m.selectedCourse.Name]
-				items := make([]list.Item, len(vpls))
-				for i, vpl := range vpls {
-					items[i] = Item {
-						ItemTitle: vpl.Title,
-						ItemDesc: fmt.Sprintf("Open Date: %s | Due Date: %s", vpl.OpenDate, vpl.DueDate),
-						ItemUrl: vpl.URL,
-					}
-				}
+				items := m.VPLListView(m.selectedCourse.Name)
 				m.vplList.SetItems(items)
 				m.vplList.Title = fmt.Sprintf("VPLs for %s", m.selectedCourse.Name)
 				m.screen = vplDetailsScreen
@@ -359,6 +343,18 @@ func (m Model) AssignmentCourseView() string {
 	return s
 }
 
+func (m Model) AssignmentListView(selectedCourse string) []list.Item {
+	assignments := m.assignmentsByCourse[selectedCourse]
+	items := make([]list.Item, len(assignments))
+	for i, assignment := range assignments {
+		items[i] = Item{
+			ItemTitle: assignment.Title,
+			ItemDesc: fmt.Sprintf("Open Date: %s | Due Date: %s | Status: %s | Grade: %s\n", assignment.OpenDate, assignment.DueDate, assignment.Status, assignment.Grade),
+			ItemUrl: assignment.URL,
+		}
+	}
+	return items
+}
 
 func (m Model) VPLCourseView() string {
 	s := titleStyle.Render("VPL → Select Course") + "\n\n"
@@ -375,3 +371,16 @@ func (m Model) VPLCourseView() string {
 	return s
 }
 
+
+func (m Model) VPLListView(selectedCourse string) []list.Item {
+	vpls := m.vplsByCourse[m.selectedCourse.Name]
+	items := make([]list.Item, len(vpls))
+	for i, vpl := range vpls {
+		items[i] = Item {
+			ItemTitle: vpl.Title,
+			ItemDesc: fmt.Sprintf("Open Date: %s | Due Date: %s", vpl.OpenDate, vpl.DueDate),
+			ItemUrl: vpl.URL,
+		}
+	}
+	return items
+}
