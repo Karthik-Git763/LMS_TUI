@@ -64,6 +64,7 @@ func InitialModel(courses []models.Course) Model {
 	courselist.SetShowPagination(true)
 	courselist.Paginator.ActiveDot = "●"
 	courselist.Paginator.InactiveDot = "○"
+	courselist.SetShowTitle(true)
 	disableListQuit(&courselist)
 	
 	// Create assignment list with help and status enabled
@@ -295,17 +296,17 @@ func (m Model) View() string {
 	case menuScreen:
 		body = m.MenuView()
 	case attendanceCourseScreen:
-		return m.HeaderView() + m.courselist.View()
+		return m.HeaderView() + "\n" + m.courselist.View()
 	case attendanceDetailsScreen:
 		body = m.AttendanceDetailsView()
 	case assignmentCourseScreen:
-		return m.HeaderView() + m.courselist.View()
+		return m.HeaderView() + "\n" + m.courselist.View()
 	case assignmentDetailsScreen:
-		return m.HeaderView() + m.assignmentList.View()
+		return m.HeaderView() + "\n" + m.assignmentList.View()
 	case vplCourseScreen:
-		return m.HeaderView() + m.courselist.View()
+		return m.HeaderView() + "\n" + m.courselist.View()
 	case vplDetailsScreen:
-		return m.HeaderView() + m.vplList.View()
+		return m.HeaderView() + "\n" + m.vplList.View()
 	default:
 		body = ""
 	}
