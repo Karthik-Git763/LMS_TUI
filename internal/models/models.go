@@ -2,6 +2,12 @@ package models
 
 import "time"
 
+type Credentials struct {
+	Username 		string
+	Password 		string
+	Authenticated 	bool
+}
+
 type Course struct {
 	Name 			string
 	URL 			string

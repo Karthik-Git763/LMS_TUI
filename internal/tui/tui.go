@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"lms/internal/models"
 	"lms/internal/scrapper"
+	"strings"
 
+	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -39,11 +42,15 @@ type Model struct {
 	courselist 			list.Model
 	assignmentList 		list.Model
 	vplList				list.Model
+	focusIndex			int
+	inputs				[]textinput.Model
+	cursorMode			cursor.Mode
 }
 
 
 const (
 	progressScreen Screen = iota
+	inputScreen
 	menuScreen
 	attendanceCourseScreen
 	attendanceDetailsScreen
@@ -88,6 +95,32 @@ func InitialModel(courses []models.Course) Model {
 	vplList.SetShowTitle(true)
 	disableListQuit(&vplList)
 	
+	inputs := make([]textinput.Model, 2)
+	var t textinput.Model
+	for i := range inputs {
+		t =  textinput.New()
+		t.Cursor.Style = cursorStyle
+		t.CharLimit = 100
+		t.Width = 60
+		
+		switch i {
+			case 0:
+				t.Prompt = "Username: "
+				t.Placeholder = "Enter your username"
+				t.Focus()
+				t.PromptStyle = focusedStyle
+				t.TextStyle = focusedStyle
+			case 1:
+				t.Prompt = "Password: "
+				t.Placeholder = "Enter your password"
+				t.EchoMode = textinput.EchoPassword
+				t.EchoCharacter = '●'
+				t.PromptStyle = blurredStyle
+				t.TextStyle = blurredStyle
+		}
+		inputs[i] = t
+	}
+	
 	return Model{
 		screen:              progressScreen,
 		courses:             courses,
@@ -101,11 +134,12 @@ func InitialModel(courses []models.Course) Model {
 		courselist:          courselist,
 		assignmentList:      assignmentList,
 		vplList:             vplList,
+		inputs:              inputs,
 	}
 }
 
 func (m Model) Init() tea.Cmd {
-	return m.spinner.Tick
+	return tea.Batch(m.spinner.Tick, textinput.Blink)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -163,8 +197,63 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case attendanceDetailsScreen, assignmentDetailsScreen, vplDetailsScreen, assignmentCourseScreen, vplCourseScreen, attendanceCourseScreen:
 				// no navigation needed
 			}
+		case "ctrl+r":
+			m.cursorMode++
+			if m.cursorMode > cursor.CursorHide {
+				m.cursorMode = cursor.CursorBlink
+			}
+			cmds := make([]tea.Cmd, len(m.inputs))
+			for i := range m.inputs {
+				cmds[i] = m.inputs[i].Cursor.SetMode(m.cursorMode)
+			}
+			return m, tea.Batch(cmds...)
+		case "tab", "shift+tab":
+			s := msg.String()
+			switch s {
+				case "tab":
+					m.focusIndex++
+				case "shift+tab":
+					m.focusIndex--
+			}
+			if m.focusIndex > len(m.inputs) {
+				m.focusIndex = 0
+			} else if m.focusIndex < 0 {
+				m.focusIndex = len(m.inputs)
+			}
+			cmds := make([]tea.Cmd, len(m.inputs))
+			for i := 0; i < len(m.inputs); i++ {
+				if i == m.focusIndex {
+					// Set the focused state
+					cmds[i] = m.inputs[i].Focus()
+					m.inputs[i].PromptStyle = focusedStyle
+					m.inputs[i].TextStyle = focusedStyle
+					continue
+				}
+				// Remove the focused state
+				m.inputs[i].Blur()
+				m.inputs[i].PromptStyle = blurredStyle
+				m.inputs[i].TextStyle = blurredStyle
+			}
 		case "enter":
 			switch m.screen {
+			case inputScreen:
+				// Submit credentials and move to menu screen
+				if m.focusIndex == len(m.inputs) {
+					username := m.inputs[0].Value()
+					password := m.inputs[1].Value()
+					if username == "" || password == "" {
+						m.inputs[0].Placeholder = "Username is required"
+						m.inputs[1].Placeholder = "Password is required"
+						m.inputs[0].Focus()
+						return m, nil
+					}
+					return m, func() tea.Msg {
+						return models.Credentials{Username: username, Password: password}
+					}
+					// TODO: Implement authentication logic
+				}
+				
+				m.cursor = 0
 			case menuScreen:
 				if m.cursor == 0 {
 					items := m.AttendanceCourseView()
@@ -237,6 +326,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.screen = vplDetailsScreen
 				m.cursor = 0
 			}
+			return m, tea.Batch(cmds...)
 		}
 		case tea.WindowSizeMsg:
 			headerHeight := lipgloss.Height(m.HeaderView())
@@ -255,6 +345,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.viewport.Height = msg.Height - verticalMarginHeight
 			}
 	}
+	cmd = m.updateInputs(msg)
+	cmds = append(cmds, cmd)
 	m.viewport, cmd = m.viewport.Update(msg)
 	cmds = append(cmds, cmd)
 	m.table, cmd = m.table.Update(msg)
@@ -293,6 +385,28 @@ func (m Model) View() string {
 	switch m.screen {
 	case progressScreen:
 		body = fmt.Sprintf("LOADING COURSES%s", m.spinner.View())
+	case inputScreen:
+		var b strings.Builder
+		b.WriteString("\n")
+		b.WriteString(titleStyle.Render("Enter Your Credentials"))
+		b.WriteString("\n\n")
+		
+		for i := range m.inputs {
+			b.WriteString(m.inputs[i].View())
+			if i < len(m.inputs)-1 {
+				b.WriteRune('\n')
+			}
+		}
+		button := &blurredButton
+		if m.focusIndex == len(m.inputs) {
+			button = &focusedButton
+		}
+		fmt.Fprintf(&b, "\n\n%s\n\n", *button)
+		b.WriteString(helpStyle.Render("Cursor mode is "))
+		b.WriteString(cursorModeHelpStyle.Render(m.cursorMode.String()))
+		b.WriteString(helpStyle.Render(" (ctrl+r to change style)"))
+		
+		return m.HeaderView() + "\n" + b.String()
 	case menuScreen:
 		body = m.MenuView()
 	case attendanceCourseScreen:
