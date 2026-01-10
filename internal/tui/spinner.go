@@ -25,7 +25,8 @@ func (m *Model) applyProgress(msg models.ProgressMsg) {
 	}
 
 	if len(m.active) == 0 && m.screen == progressScreen {
-		m.screen = inputScreen
+		m.screen = menuScreen
+		m.selectedURL = ""
 	}
 }
 
@@ -35,6 +36,7 @@ func (m *Model) applyDataLoaded(msg models.DataLoadedMsg) {
 	m.vplsByCourse = msg.VPL
 
 	if m.screen == progressScreen {
-		m.screen = inputScreen
+		m.screen = menuScreen
+		m.selectedURL = ""
 	}
 }

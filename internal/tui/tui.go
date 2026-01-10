@@ -2,11 +2,15 @@ package tui
 
 import (
 	"fmt"
+	"net/http"
+
+	"lms/internal/auth"
 	"lms/internal/models"
 	"lms/internal/scrapper"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/cursor"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
@@ -45,6 +49,9 @@ type Model struct {
 	focusIndex			int
 	inputs				[]textinput.Model
 	cursorMode			cursor.Mode
+	authError			string
+	client				*http.Client
+	baseURL				string
 }
 
 
@@ -60,8 +67,7 @@ const (
 	vplDetailsScreen
 )
 
-
-func InitialModel(courses []models.Course) Model {
+func InitialModel(courses []models.Course, p *tea.Program, client *http.Client, baseURL string) Model {
 	delegate := list.NewDefaultDelegate()
 	
 	courselist := list.New([]list.Item{}, delegate, 0, 0)
@@ -72,7 +78,7 @@ func InitialModel(courses []models.Course) Model {
 	courselist.Paginator.ActiveDot = "●"
 	courselist.Paginator.InactiveDot = "○"
 	courselist.SetShowTitle(true)
-	disableListQuit(&courselist)
+	DisableListQuit(&courselist)
 	
 	// Create assignment list with help and status enabled
 	assignmentList := list.New([]list.Item{}, delegate, 0, 0)
@@ -82,7 +88,7 @@ func InitialModel(courses []models.Course) Model {
 	assignmentList.Paginator.ActiveDot = "●"
 	assignmentList.Paginator.InactiveDot = "○"
 	assignmentList.SetShowTitle(true)
-	disableListQuit(&assignmentList)
+	DisableListQuit(&assignmentList)
 	
 	// Create VPL list with help and status enabled
 	vplList := list.New([]list.Item{}, delegate, 0, 0)
@@ -93,7 +99,7 @@ func InitialModel(courses []models.Course) Model {
 	vplList.Paginator.ActiveDot = "●"
 	vplList.Paginator.InactiveDot = "○"
 	vplList.SetShowTitle(true)
-	disableListQuit(&vplList)
+	DisableListQuit(&vplList)
 	
 	inputs := make([]textinput.Model, 2)
 	var t textinput.Model
@@ -122,7 +128,7 @@ func InitialModel(courses []models.Course) Model {
 	}
 	
 	return Model{
-		screen:              progressScreen,
+		screen:              inputScreen,
 		courses:             courses,
 		attendanceByCourse:  make(map[string][]models.Attendance),
 		assignmentsByCourse: make(map[string][]models.Assignment),
@@ -135,6 +141,9 @@ func InitialModel(courses []models.Course) Model {
 		assignmentList:      assignmentList,
 		vplList:             vplList,
 		inputs:              inputs,
+		authError:           "",
+		client:              client,
+		baseURL:             baseURL,
 	}
 }
 
@@ -153,6 +162,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.applyProgress(msg)
 	case models.DataLoadedMsg:
 		m.applyDataLoaded(msg)
+	case models.Credentials:
+		// Handle authentication with provided credentials
+		return m, func() tea.Msg {
+			return auth.AuthenticateAndFetchData(m.client, m.baseURL, msg.Username, msg.Password)
+		}
+	case models.AuthResultMsg:
+		if msg.Success {
+			m.courses = msg.Courses
+			m.screen = progressScreen
+			m.authError = ""
+			m.selectedURL = ""
+			// Start fetching data for all courses
+			return m, scrapper.StartDataFetching(m.client, m.courses)
+		} else {
+			m.authError = msg.Error
+			m.inputs[0].Reset()
+			m.inputs[1].Reset()
+			m.inputs[0].Focus()
+			m.focusIndex = 0
+			return m, nil
+		}
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc":
@@ -161,21 +191,31 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				m.table.Focus()
 			}
-		case "o":
-			if m.selectedURL != "" {
+		case "o", "O":
+			if m.selectedURL != "" && (m.screen == attendanceDetailsScreen || m.screen == assignmentDetailsScreen || m.screen == vplDetailsScreen) {
 				models.OpenBrowser(m.selectedURL)
 			}
-		case "q":
-			switch m.screen {
-			case attendanceDetailsScreen:
-				m.screen = attendanceCourseScreen
-			case assignmentDetailsScreen:
-				m.screen = assignmentCourseScreen
-			case vplDetailsScreen:
-				m.screen = vplCourseScreen
-			default:
-				m.screen = menuScreen
-				m.cursor = 0
+		case "q", "Q":
+			if m.screen != inputScreen {
+				m.selectedURL = ""
+				switch m.screen {
+				case attendanceCourseScreen:
+					m.screen = menuScreen
+					m.cursor = 0
+				case attendanceDetailsScreen:
+					m.screen = attendanceCourseScreen
+				case assignmentCourseScreen:
+					m.screen = menuScreen
+					m.cursor = 0
+				case assignmentDetailsScreen:
+					m.screen = assignmentCourseScreen
+				case vplCourseScreen:
+					m.screen = menuScreen
+					m.cursor = 0
+				case vplDetailsScreen:
+					m.screen = vplCourseScreen
+				}
+				return m, nil
 			}
 		case "ctrl+c":
 			return m, tea.Quit
@@ -250,11 +290,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, func() tea.Msg {
 						return models.Credentials{Username: username, Password: password}
 					}
-					// TODO: Implement authentication logic
 				}
 				
 				m.cursor = 0
 			case menuScreen:
+				m.selectedURL = ""
 				if m.cursor == 0 {
 					items := m.AttendanceCourseView()
 					m.courselist.SetItems(items)
@@ -288,6 +328,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 				records := m.attendanceByCourse[m.selectedCourse.Name]
+				m.selectedURL = ""
 				if len(records) > 0 {
 					m.selectedURL = records[0].AttendanceURL
 				}
@@ -308,6 +349,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				items := m.AssignmentListView(m.selectedCourse.Name)
 				m.assignmentList.SetItems(items)
 				m.assignmentList.Title = fmt.Sprintf("Assignments for %s", m.selectedCourse.Name)
+				m.selectedURL = ""
+				if len(items) > 0 {
+					m.assignmentList.Select(0)
+					if first, ok := m.assignmentList.SelectedItem().(Item); ok {
+						m.selectedURL = first.ItemUrl
+					}
+				}
 				m.screen = assignmentDetailsScreen
 				m.cursor = 0
 			case vplCourseScreen:
@@ -323,6 +371,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				items := m.VPLListView(m.selectedCourse.Name)
 				m.vplList.SetItems(items)
 				m.vplList.Title = fmt.Sprintf("VPLs for %s", m.selectedCourse.Name)
+				m.selectedURL = ""
+				if len(items) > 0 {
+					m.vplList.Select(0)
+					if first, ok := m.vplList.SelectedItem().(Item); ok {
+						m.selectedURL = first.ItemUrl
+					}
+				}
 				m.screen = vplDetailsScreen
 				m.cursor = 0
 			}
@@ -390,6 +445,12 @@ func (m Model) View() string {
 		b.WriteString("\n")
 		b.WriteString(titleStyle.Render("Enter Your Credentials"))
 		b.WriteString("\n\n")
+			// Display auth error if present
+			if m.authError != "" {
+				b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Render("Error: " + m.authError))
+				b.WriteString("\n\n")
+			}
+	
 		
 		for i := range m.inputs {
 			b.WriteString(m.inputs[i].View())
@@ -541,10 +602,18 @@ func (m Model) VPLListView(selectedCourse string) []list.Item {
 	return items
 }
 
-// disableListQuit removes the default 'q' quit binding from a list so that
+// DisableListQuit removes the default 'q' quit binding from a list so that
 // 'q' can be handled by the parent model to navigate back instead of exiting.
-func disableListQuit(l *list.Model) {
-	km := l.KeyMap
-	km.Quit.SetKeys()
-	l.KeyMap = km
+func DisableListQuit(l *list.Model) {
+	l.KeyMap.Quit.SetKeys()
+	l.KeyMap.ForceQuit.SetKeys()
+	// Add custom help text for 'q' to show it goes back
+	l.AdditionalShortHelpKeys = func() []key.Binding {
+		return []key.Binding{
+			key.NewBinding(
+				key.WithKeys("q"),
+				key.WithHelp("q", "back"),
+			),
+		}
+	}
 }

@@ -69,3 +69,10 @@ type ProgressMsg struct {
 	Type   ProgressType
 	Err    error
 }
+
+// AuthResultMsg carries authentication and course fetching results
+type AuthResultMsg struct {
+	Success bool
+	Error   string
+	Courses []Course
+}
