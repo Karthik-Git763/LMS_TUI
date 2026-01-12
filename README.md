@@ -2,7 +2,7 @@
 
 A modern, interactive terminal-based user interface for managing and viewing Learning Management System (Moodle) courses, assignments, attendance, and VPL (Virtual Programming Lab) content. Built with Go using the Bubble Tea framework for a smooth, responsive TUI experience.
 
-## 📋 Features
+## Features
 
 - **Course Management**: View and navigate all enrolled courses
 - **Assignments Tracking**: Browse assignments with status, due dates, and descriptions
@@ -13,7 +13,7 @@ A modern, interactive terminal-based user interface for managing and viewing Lea
 - **Session Management**: Secure login with token-based authentication
 - **Responsive Tables & Lists**: Beautiful formatted data display
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Language**: Go 1.25.5
 - **TUI Framework**: Bubble Tea (`charmbracelet/bubbletea`)
@@ -21,7 +21,7 @@ A modern, interactive terminal-based user interface for managing and viewing Lea
 - **Styling**: Lip Gloss (`charmbracelet/lipgloss`)
 - **Web Scraping**: GoQuery (`PuerkitoBio/goquery`)
 
-## 📦 Prerequisites
+## Prerequisites
 
 Before you begin, ensure you have the following installed:
 
@@ -39,7 +39,7 @@ go version
 git --version
 ```
 
-## 🚀 Installation
+## Installation
 
 ### 1. Clone the Repository
 
@@ -82,7 +82,7 @@ go build -o lms-tui
 go run main.go
 ```
 
-## 🎮 Usage Guide
+## Usage Guide
 
 ### Authentication
 
@@ -101,26 +101,26 @@ go run main.go
 
 ### Views
 
-#### 🎓 Courses View
+#### Courses View
 - Lists all your enrolled courses
 - Select a course to view related data
 
-#### 📝 Assignments View
+#### Assignments View
 - View all assignments for selected course
 - Status indicators (Submitted, Pending, Overdue)
 - Due date information
 - Click to view assignment details
 
-#### 📊 Attendance View
+#### Attendance View
 - Check your attendance records
 - Session-wise attendance status
 - Percentage calculation
 
-#### 💻 VPL Assignments
+#### VPL Assignments
 - View Virtual Programming Lab assignments
 - Status and deadline tracking
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 lms/
@@ -152,7 +152,7 @@ lms/
         └── table.go          # Table rendering
 ```
 
-## 🔧 Development
+## Development
 
 ### Project Architecture
 
@@ -181,7 +181,7 @@ GOOS=darwin GOARCH=amd64 go build -o lms-tui
 GOOS=linux GOARCH=amd64 go build -o lms-tui
 ```
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Login Issues
 - **Problem**: Authentication fails
@@ -193,7 +193,7 @@ GOOS=linux GOARCH=amd64 go build -o lms-tui
 
 ### Terminal Compatibility
 - **Problem**: TUI doesn't render properly
-- **Solution**: Use a modern terminal (Windows Terminal, iTerm2, etc.)
+- **Solution**: Use a modern terminal (Windows Terminal, bash, fish, etc..)
 
 ### Build Errors
 - **Problem**: `go: command not found`
@@ -204,7 +204,7 @@ GOOS=linux GOARCH=amd64 go build -o lms-tui
 go version
 ```
 
-## 📝 Configuration
+## Configuration
 
 The base LMS URL is configured in `main.go`:
 
@@ -214,7 +214,7 @@ const baseURL = "https://lmsug23.iiitkottayam.ac.in"
 
 To change the LMS instance, modify this URL to your institution's Moodle server.
 
-## 📋 Dependencies
+## Dependencies
 
 Key dependencies (managed by `go.mod`):
 
@@ -225,7 +225,7 @@ Key dependencies (managed by `go.mod`):
 
 All dependencies are automatically downloaded during build/run.
 
-## 🚨 Logging
+## Logging
 
 The application logs to `log.txt` for debugging purposes:
 
@@ -235,22 +235,22 @@ f, err := tea.LogToFile("./log.txt", "Log: ")
 
 Check this file if you encounter issues.
 
-## 📄 License
+## License
 
 This project is provided as-is for educational purposes.
 
-## 👤 Author
+## Author
 
 **Karthik** - [GitHub Profile](https://github.com/Karthik-Git763)
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Feel free to:
 - Report bugs
 - Suggest improvements
 - Submit pull requests
 
-## 📞 Support
+## Support
 
 For issues or questions:
 1. Check the troubleshooting section
@@ -258,5 +258,3 @@ For issues or questions:
 3. Open an issue on GitHub
 
 ---
-
-**Happy Learning! 🎓**
