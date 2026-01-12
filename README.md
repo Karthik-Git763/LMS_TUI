@@ -1,4 +1,4 @@
-# CReLMS_TUI - Learning Management System Terminal UI
+# LMS_TUI - Learning Management System Terminal UI
 
 A modern, interactive terminal-based user interface for managing and viewing Learning Management System (Moodle) courses, assignments, attendance, and VPL (Virtual Programming Lab) content. Built with Go using the Bubble Tea framework for a smooth, responsive TUI experience.
 
